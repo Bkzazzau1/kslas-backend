@@ -1,0 +1,54 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Go: tidy",
+      "type": "shell",
+      "command": "go",
+      "args": [
+        "mod",
+        "tidy"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Go: build",
+      "type": "shell",
+      "command": "go",
+      "args": [
+        "build",
+        "./..."
+      ],
+      "group": "build",
+      "problemMatcher": [
+        "$go"
+      ]
+    },
+    {
+      "label": "Go: test",
+      "type": "shell",
+      "command": "go",
+      "args": [
+        "test",
+        "./..."
+      ],
+      "group": "test",
+      "problemMatcher": [
+        "$go"
+      ]
+    },
+    {
+      "label": "Go: run",
+      "type": "shell",
+      "command": "go",
+      "args": [
+        "run",
+        "./cmd/kslasbackend"
+      ],
+      "problemMatcher": [
+        "$go"
+      ]
+    }
+  ]
+}

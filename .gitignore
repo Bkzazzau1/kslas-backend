@@ -1,0 +1,23 @@
+# Build outputs
+/bin/
+/dist/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test and coverage artifacts
+*.test
+coverage.out
+coverage.html
+
+# Dependency vendoring
+/vendor/
+
+# Local environment files
+.env
+.env.local
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

@@ -1,0 +1,15 @@
+{
+  "go.toolsManagement.autoUpdate": true,
+  "go.toolsManagement.checkForUpdates": "proxy",
+  "[go]": {
+    "editor.defaultFormatter": "golang.go",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+  "gopls": {
+    "formatting.gofumpt": true,
+    "ui.completion.usePlaceholders": true
+  }
+}
