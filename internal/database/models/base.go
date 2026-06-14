@@ -51,11 +51,14 @@ const (
 	ScopeDepartment ScopeType = "department"
 	ScopeProgramme  ScopeType = "programme"
 	ScopeCourse     ScopeType = "course"
+	ScopeCohort     ScopeType = "cohort"
+	ScopeExam       ScopeType = "exam"
+	ScopeRoom       ScopeType = "room"
 )
 
 func (s ScopeType) Valid() bool {
 	switch s {
-	case ScopeSchool, ScopeFaculty, ScopeDepartment, ScopeProgramme, ScopeCourse:
+	case ScopeSchool, ScopeFaculty, ScopeDepartment, ScopeProgramme, ScopeCourse, ScopeCohort, ScopeExam, ScopeRoom:
 		return true
 	default:
 		return false
