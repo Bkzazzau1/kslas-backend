@@ -47,6 +47,7 @@ func main() {
 	authRepository := repository.NewAuthRepository(db)
 	academicRepository := repository.NewAcademicRepository(db)
 	teachingRepository := repository.NewTeachingRepository(db)
+	studentServicesRepository := repository.NewStudentServicesRepository(db)
 	passwordService := services.NewPasswordService()
 	authService := services.NewAuthService(authRepository, passwordService, jwtService)
 	permissionService := services.NewPermissionService(rbac.NewAuthorizer(db))
@@ -71,23 +72,26 @@ func main() {
 	resultHandler := handlers.NewResultHandler(resultService)
 	reportService := services.NewReportService(teachingRepository, permissionService)
 	reportHandler := handlers.NewReportHandler(reportService)
+	studentServicesService := services.NewStudentServicesService(studentServicesRepository)
+	studentServicesHandler := handlers.NewStudentServicesHandler(studentServicesService)
 
 	server := &http.Server{
 		Addr: ":" + cfg.HTTPPort,
 		Handler: appserver.NewRouter(&appserver.Dependencies{
-			AuthHandler:       authHandler,
-			AcademicHandler:   academicHandler,
-			AdminHandler:      administrationHandler,
-			MaterialHandler:   materialHandler,
-			AssignmentHandler: assignmentHandler,
-			ForumHandler:      forumHandler,
-			MessageHandler:    messageHandler,
-			ContentHandler:    contentHandler,
-			ExamHandler:       examHandler,
-			ResultHandler:     resultHandler,
-			ReportHandler:     reportHandler,
-			JWTService:        jwtService,
-			PermissionService: permissionService,
+			AuthHandler:            authHandler,
+			AcademicHandler:        academicHandler,
+			AdminHandler:           administrationHandler,
+			MaterialHandler:        materialHandler,
+			AssignmentHandler:      assignmentHandler,
+			ForumHandler:           forumHandler,
+			MessageHandler:         messageHandler,
+			ContentHandler:         contentHandler,
+			ExamHandler:            examHandler,
+			ResultHandler:          resultHandler,
+			ReportHandler:          reportHandler,
+			StudentServicesHandler: studentServicesHandler,
+			JWTService:             jwtService,
+			PermissionService:      permissionService,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
