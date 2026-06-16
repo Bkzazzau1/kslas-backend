@@ -67,6 +67,7 @@ func main() {
 	contentHandler := handlers.NewTeachingContentHandler(contentService)
 	examService := services.NewExamService(teachingRepository, permissionService)
 	examHandler := handlers.NewExamHandler(examService)
+	invigilatorEvidenceHandler := handlers.NewInvigilatorEvidenceHandler()
 	resultService := services.NewResultService(teachingRepository, permissionService)
 	resultHandler := handlers.NewResultHandler(resultService)
 	reportService := services.NewReportService(teachingRepository, permissionService)
@@ -75,19 +76,20 @@ func main() {
 	server := &http.Server{
 		Addr: ":" + cfg.HTTPPort,
 		Handler: appserver.NewRouter(&appserver.Dependencies{
-			AuthHandler:       authHandler,
-			AcademicHandler:   academicHandler,
-			AdminHandler:      administrationHandler,
-			MaterialHandler:   materialHandler,
-			AssignmentHandler: assignmentHandler,
-			ForumHandler:      forumHandler,
-			MessageHandler:    messageHandler,
-			ContentHandler:    contentHandler,
-			ExamHandler:       examHandler,
-			ResultHandler:     resultHandler,
-			ReportHandler:     reportHandler,
-			JWTService:        jwtService,
-			PermissionService: permissionService,
+			AuthHandler:                authHandler,
+			AcademicHandler:            academicHandler,
+			AdminHandler:               administrationHandler,
+			MaterialHandler:            materialHandler,
+			AssignmentHandler:          assignmentHandler,
+			ForumHandler:               forumHandler,
+			MessageHandler:             messageHandler,
+			ContentHandler:             contentHandler,
+			ExamHandler:                examHandler,
+			InvigilatorEvidenceHandler: invigilatorEvidenceHandler,
+			ResultHandler:              resultHandler,
+			ReportHandler:              reportHandler,
+			JWTService:                 jwtService,
+			PermissionService:          permissionService,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
