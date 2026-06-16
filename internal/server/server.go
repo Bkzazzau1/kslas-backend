@@ -10,19 +10,20 @@ import (
 )
 
 type Dependencies struct {
-	AuthHandler       *handlers.AuthHandler
-	AcademicHandler   *handlers.AcademicHandler
-	AdminHandler      *handlers.AdministrationHandler
-	MaterialHandler   *handlers.MaterialHandler
-	AssignmentHandler *handlers.AssignmentHandler
-	ForumHandler      *handlers.ForumHandler
-	MessageHandler    *handlers.DirectMessageHandler
-	ContentHandler    *handlers.TeachingContentHandler
-	ExamHandler       *handlers.ExamHandler
-	ResultHandler     *handlers.ResultHandler
-	ReportHandler     *handlers.ReportHandler
-	JWTService        *services.JWTService
-	PermissionService *services.PermissionService
+	AuthHandler                *handlers.AuthHandler
+	AcademicHandler            *handlers.AcademicHandler
+	AdminHandler               *handlers.AdministrationHandler
+	MaterialHandler            *handlers.MaterialHandler
+	AssignmentHandler          *handlers.AssignmentHandler
+	ForumHandler               *handlers.ForumHandler
+	MessageHandler             *handlers.DirectMessageHandler
+	ContentHandler             *handlers.TeachingContentHandler
+	ExamHandler                *handlers.ExamHandler
+	InvigilatorEvidenceHandler *handlers.InvigilatorEvidenceHandler
+	ResultHandler              *handlers.ResultHandler
+	ReportHandler              *handlers.ReportHandler
+	JWTService                 *services.JWTService
+	PermissionService          *services.PermissionService
 }
 
 func NewRouter(dep *Dependencies) http.Handler {
@@ -358,6 +359,20 @@ func NewRouter(dep *Dependencies) http.Handler {
 		"/api/invigilator/alerts/{alertID}/acknowledge",
 		chain(
 			http.HandlerFunc(dep.ExamHandler.AlertAcknowledge),
+			middleware.AuthMiddleware(dep.JWTService),
+		),
+	)
+	mux.Handle(
+		"/api/invigilator/evidence",
+		chain(
+			http.HandlerFunc(dep.InvigilatorEvidenceHandler.Queue),
+			middleware.AuthMiddleware(dep.JWTService),
+		),
+	)
+	mux.Handle(
+		"/api/invigilator/evidence/{caseID}/decision",
+		chain(
+			http.HandlerFunc(dep.InvigilatorEvidenceHandler.Decision),
 			middleware.AuthMiddleware(dep.JWTService),
 		),
 	)
