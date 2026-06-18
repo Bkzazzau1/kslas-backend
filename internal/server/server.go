@@ -382,6 +382,10 @@ func NewRouter(dep *Dependencies) http.Handler {
 		method(http.MethodPost, http.HandlerFunc(dep.ProctoringReviewHandler.PreExamReview)),
 	)
 	mux.Handle(
+		"/api/proctoring/live-events",
+		method(http.MethodPost, http.HandlerFunc(dep.ProctoringReviewHandler.LiveEvent)),
+	)
+	mux.Handle(
 		"/api/results",
 		chain(
 			http.HandlerFunc(dep.ResultHandler.Results),
