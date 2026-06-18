@@ -70,7 +70,7 @@ func fallbackPreExamReview(req dto.PreExamReviewRequest, uploaded map[string]boo
 		if !target.Captured {
 			missing = append(missing, target.Name)
 		}
-		if target.LightingScore < 0.25 {
+		if target.LightingScore < 0.08 {
 			lowLight = append(lowLight, target.Name)
 		}
 		if target.ImageKey == "" || !uploaded[target.ImageKey] {
@@ -166,7 +166,6 @@ func isReviewRiskLabel(label string) bool {
 		"earpiece",
 		"headphone",
 		"person",
-		"dark",
 	}
 
 	for _, term := range riskTerms {
