@@ -43,6 +43,42 @@ func (h *ProctoringReviewHandler) PreExamReview(w http.ResponseWriter, r *http.R
 	writeJSON(w, http.StatusOK, fallbackPreExamReview(req, uploadedEvidenceFiles(r.MultipartForm)))
 }
 
+func (h *ProctoringReviewHandler) LiveEvent(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeMethodNotAllowed(w, http.MethodPost)
+		return
+	}
+
+	var req dto.LiveProctoringEventRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if strings.TrimSpace(req.AttemptID) == "" || strings.TrimSpace(req.EventType) == "" {
+		writeError(w, http.StatusBadRequest, "attempt_id and event_type are required")
+		return
+	}
+
+	severity := strings.ToLower(strings.TrimSpace(req.Severity))
+	action := "log_only"
+	notice := "Exam monitoring event recorded."
+	if severity == "critical" || severity == "high" {
+		action = "pause_and_review"
+		notice = "A monitoring issue was detected. Please wait for review or follow the displayed instruction."
+	} else if severity == "medium" || severity == "warning" {
+		action = "flag_for_review"
+		notice = "A monitoring warning was recorded. Continue only if the issue is corrected."
+	}
+
+	writeJSON(w, http.StatusCreated, dto.LiveProctoringEventResponse{
+		EventID:       fmt.Sprintf("live_event_%d", time.Now().UTC().UnixNano()),
+		Accepted:      true,
+		Action:        action,
+		StudentNotice: notice,
+	})
+}
+
 func uploadedEvidenceFiles(form *multipart.Form) map[string]bool {
 	uploaded := map[string]bool{}
 	if form == nil {
