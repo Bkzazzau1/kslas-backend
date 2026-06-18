@@ -153,18 +153,18 @@ func fallbackPreExamReview(req dto.PreExamReviewRequest, uploaded map[string]boo
 			Detail:   "The microphone check passed but the audio clip was not uploaded.",
 			Severity: "warning",
 		})
-	} else if req.Audio.VoiceConfidence >= 0.70 || strings.Contains(strings.ToLower(req.Audio.EnvironmentLabel), "voice") {
+	} else if audioRequiresReview(req.Audio) {
 		audioReview = true
 		findings = append(findings, dto.ReviewFindingResponse{
 			Title:    "Room sound review required",
-			Detail:   "Human voice or speech-like sound was detected.",
+			Detail:   "Human voice, phone, notification, TV, radio, or conversation sound was detected.",
 			Severity: "warning",
 		})
-	} else if req.Audio.PeakRMS > 0.85 || strings.Contains(strings.ToLower(req.Audio.EnvironmentLabel), "very_noisy") {
-		audioReview = true
+	} else if !audioIsClassifiedOrAllowed(req.Audio) {
+		audioRescan = true
 		findings = append(findings, dto.ReviewFindingResponse{
-			Title:    "Room sound review required",
-			Detail:   "The sound level is too high for automatic approval.",
+			Title:    "Sound check unclear",
+			Detail:   "Room sound could not be classified clearly. Please repeat the sound check.",
 			Severity: "warning",
 		})
 	} else {
@@ -217,6 +217,73 @@ func isReviewRiskLabel(label string) bool {
 
 	for _, term := range riskTerms {
 		if strings.Contains(value, term) {
+			return true
+		}
+	}
+	return false
+}
+
+func audioRequiresReview(audio *dto.PreExamReviewAudioRequest) bool {
+	if audio == nil {
+		return false
+	}
+	if audio.HumanVoiceDetected ||
+		audio.PhoneRingDetected ||
+		audio.NotificationDetected ||
+		audio.TVOrRadioVoiceDetected {
+		return true
+	}
+
+	label := strings.ToLower(audio.EnvironmentLabel)
+	noiseClass := strings.ToLower(audio.DominantNoiseClass)
+	reviewTerms := []string{
+		"human_voice",
+		"voice",
+		"conversation",
+		"phone_ring",
+		"ringtone",
+		"notification",
+		"tv_voice",
+		"radio_voice",
+	}
+	for _, term := range reviewTerms {
+		if strings.Contains(label, term) || strings.Contains(noiseClass, term) {
+			return true
+		}
+	}
+	return audio.VoiceConfidence >= 0.70
+}
+
+func audioIsClassifiedOrAllowed(audio *dto.PreExamReviewAudioRequest) bool {
+	if audio == nil {
+		return false
+	}
+	if audio.AmbientNoiseAllowed {
+		return true
+	}
+
+	noiseClass := strings.ToLower(strings.TrimSpace(audio.DominantNoiseClass))
+	if noiseClass == "" || noiseClass == "unclassified" || noiseClass == "unknown" {
+		return false
+	}
+
+	allowedClasses := []string{
+		"fan",
+		"generator",
+		"rain",
+		"traffic",
+		"ac",
+		"air_conditioner",
+		"wind",
+		"allowed_ambient_noise",
+		"quiet_room",
+		"quiet_environment",
+		"moderate_environment",
+		"noisy_environment",
+		"very_noisy_environment",
+	}
+	for _, allowed := range allowedClasses {
+		if strings.Contains(noiseClass, allowed) {
 			return true
 		}
 	}
