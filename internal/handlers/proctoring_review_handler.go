@@ -214,7 +214,7 @@ func fallbackPreExamReview(req dto.PreExamReviewRequest, uploaded map[string]boo
 	decision := "approved"
 	riskScore := 12
 	riskLevel := "low"
-	summary := "Pre-exam security check completed successfully."
+	summary := "Backend review approved. Click OK to start the exam."
 
 	if len(missing) > 0 || len(lowLight) > 0 || len(missingImages) > 0 || audioRescan || audioClipMissing {
 		decision = "rescan_required"
