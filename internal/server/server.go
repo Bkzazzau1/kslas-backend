@@ -20,6 +20,7 @@ type Dependencies struct {
 	ContentHandler             *handlers.TeachingContentHandler
 	ExamHandler                *handlers.ExamHandler
 	InvigilatorEvidenceHandler *handlers.InvigilatorEvidenceHandler
+	ProctoringReviewHandler    *handlers.ProctoringReviewHandler
 	ResultHandler              *handlers.ResultHandler
 	ReportHandler              *handlers.ReportHandler
 	JWTService                 *services.JWTService
@@ -375,6 +376,10 @@ func NewRouter(dep *Dependencies) http.Handler {
 			http.HandlerFunc(dep.InvigilatorEvidenceHandler.Decision),
 			middleware.AuthMiddleware(dep.JWTService),
 		),
+	)
+	mux.Handle(
+		"/api/proctoring/pre-exam-review",
+		method(http.MethodPost, http.HandlerFunc(dep.ProctoringReviewHandler.PreExamReview)),
 	)
 	mux.Handle(
 		"/api/results",

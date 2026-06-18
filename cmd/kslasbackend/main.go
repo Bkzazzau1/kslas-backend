@@ -68,6 +68,7 @@ func main() {
 	examService := services.NewExamService(teachingRepository, permissionService)
 	examHandler := handlers.NewExamHandler(examService)
 	invigilatorEvidenceHandler := handlers.NewInvigilatorEvidenceHandler()
+	proctoringReviewHandler := handlers.NewProctoringReviewHandler()
 	resultService := services.NewResultService(teachingRepository, permissionService)
 	resultHandler := handlers.NewResultHandler(resultService)
 	reportService := services.NewReportService(teachingRepository, permissionService)
@@ -86,6 +87,7 @@ func main() {
 			ContentHandler:             contentHandler,
 			ExamHandler:                examHandler,
 			InvigilatorEvidenceHandler: invigilatorEvidenceHandler,
+			ProctoringReviewHandler:    proctoringReviewHandler,
 			ResultHandler:              resultHandler,
 			ReportHandler:              reportHandler,
 			JWTService:                 jwtService,
