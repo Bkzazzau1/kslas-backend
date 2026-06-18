@@ -15,7 +15,19 @@ type PreExamReviewRequest struct {
 	ExamID     string                       `json:"exam_id"`
 	AttemptID  string                       `json:"attempt_id"`
 	CapturedAt string                       `json:"captured_at"`
+	Audio      *PreExamReviewAudioRequest   `json:"audio,omitempty"`
 	Targets    []PreExamReviewTargetRequest `json:"targets"`
+}
+
+type PreExamReviewAudioRequest struct {
+	MicrophoneAvailable bool    `json:"microphone_available"`
+	PermissionGranted   bool    `json:"permission_granted"`
+	InputLevelOK        bool    `json:"input_level_ok"`
+	AverageRMS          float64 `json:"average_rms"`
+	PeakRMS             float64 `json:"peak_rms"`
+	VoiceConfidence     float64 `json:"voice_confidence"`
+	EnvironmentLabel    string  `json:"environment_label"`
+	Message             string  `json:"message,omitempty"`
 }
 
 type ReviewFindingResponse struct {

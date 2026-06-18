@@ -49,11 +49,12 @@ func uploadedEvidenceFiles(form *multipart.Form) map[string]bool {
 		return uploaded
 	}
 
-	for _, files := range form.File {
+	for field, files := range form.File {
 		for _, file := range files {
 			if file.Filename == "" {
 				continue
 			}
+			uploaded[field] = true
 			uploaded[file.Filename] = true
 		}
 	}
@@ -65,6 +66,9 @@ func fallbackPreExamReview(req dto.PreExamReviewRequest, uploaded map[string]boo
 	lowLight := []string{}
 	missingImages := []string{}
 	riskLabels := []string{}
+	audioRescan := false
+	audioReview := false
+	audioClipMissing := false
 
 	for _, target := range req.Targets {
 		if !target.Captured {
@@ -128,17 +132,60 @@ func fallbackPreExamReview(req dto.PreExamReviewRequest, uploaded map[string]boo
 		})
 	}
 
+	if req.Audio == nil {
+		audioReview = true
+		findings = append(findings, dto.ReviewFindingResponse{
+			Title:    "Sound check pending",
+			Detail:   "Room sound could not be checked.",
+			Severity: "warning",
+		})
+	} else if !req.Audio.MicrophoneAvailable || !req.Audio.PermissionGranted || !req.Audio.InputLevelOK {
+		audioRescan = true
+		findings = append(findings, dto.ReviewFindingResponse{
+			Title:    "Sound check required",
+			Detail:   "Microphone access or input level needs correction.",
+			Severity: "warning",
+		})
+	} else if !uploaded["audio_clip"] {
+		audioClipMissing = true
+		findings = append(findings, dto.ReviewFindingResponse{
+			Title:    "Sound evidence incomplete",
+			Detail:   "The microphone check passed but the audio clip was not uploaded.",
+			Severity: "warning",
+		})
+	} else if req.Audio.VoiceConfidence >= 0.70 || strings.Contains(strings.ToLower(req.Audio.EnvironmentLabel), "voice") {
+		audioReview = true
+		findings = append(findings, dto.ReviewFindingResponse{
+			Title:    "Room sound review required",
+			Detail:   "Human voice or speech-like sound was detected.",
+			Severity: "warning",
+		})
+	} else if req.Audio.PeakRMS > 0.85 || strings.Contains(strings.ToLower(req.Audio.EnvironmentLabel), "very_noisy") {
+		audioReview = true
+		findings = append(findings, dto.ReviewFindingResponse{
+			Title:    "Room sound review required",
+			Detail:   "The sound level is too high for automatic approval.",
+			Severity: "warning",
+		})
+	} else {
+		findings = append(findings, dto.ReviewFindingResponse{
+			Title:    "Sound check accepted",
+			Detail:   "Room sound is acceptable for exam startup.",
+			Severity: "success",
+		})
+	}
+
 	decision := "approved"
 	riskScore := 12
 	riskLevel := "low"
 	summary := "Pre-exam security check completed successfully."
 
-	if len(missing) > 0 || len(lowLight) > 0 || len(missingImages) > 0 {
+	if len(missing) > 0 || len(lowLight) > 0 || len(missingImages) > 0 || audioRescan || audioClipMissing {
 		decision = "rescan_required"
 		riskScore = 45
 		riskLevel = "medium"
 		summary = "Some checks need correction before the exam can start."
-	} else if len(riskLabels) > 0 {
+	} else if len(riskLabels) > 0 || audioReview {
 		decision = "review_required"
 		riskScore = 62
 		riskLevel = "medium"
