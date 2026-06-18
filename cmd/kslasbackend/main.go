@@ -68,7 +68,12 @@ func main() {
 	examService := services.NewExamService(teachingRepository, permissionService)
 	examHandler := handlers.NewExamHandler(examService)
 	invigilatorEvidenceHandler := handlers.NewInvigilatorEvidenceHandler()
-	proctoringReviewHandler := handlers.NewProctoringReviewHandler()
+	openAIReviewService := services.NewOpenAIPreExamReviewService(
+		cfg.OpenAIAPIKey,
+		cfg.OpenAIBaseURL,
+		cfg.OpenAIReviewModel,
+	)
+	proctoringReviewHandler := handlers.NewProctoringReviewHandler(openAIReviewService)
 	resultService := services.NewResultService(teachingRepository, permissionService)
 	resultHandler := handlers.NewResultHandler(resultService)
 	reportService := services.NewReportService(teachingRepository, permissionService)

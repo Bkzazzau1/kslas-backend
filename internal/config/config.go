@@ -23,6 +23,9 @@ type Config struct {
 	JWTExpiresHours   int
 	StorageDir        string
 	MaxUploadBytes    int64
+	OpenAIAPIKey      string
+	OpenAIBaseURL     string
+	OpenAIReviewModel string
 	BootstrapAdmin    BootstrapAdminConfig
 }
 
@@ -57,6 +60,9 @@ func Load() (Config, error) {
 		JWTExpiresHours:   getEnvInt("JWT_EXPIRES_HOURS", 24),
 		StorageDir:        getEnv("STORAGE_DIR", "storage"),
 		MaxUploadBytes:    getEnvInt64("MAX_UPLOAD_BYTES", 1<<30),
+		OpenAIAPIKey:      strings.TrimSpace(os.Getenv("OPENAI_API_KEY")),
+		OpenAIBaseURL:     getEnv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+		OpenAIReviewModel: getEnv("OPENAI_REVIEW_MODEL", "gpt-4.1-mini"),
 		BootstrapAdmin: BootstrapAdminConfig{
 			Email:     strings.ToLower(getEnv("BOOTSTRAP_ADMIN_EMAIL", "")),
 			Password:  strings.TrimSpace(os.Getenv("BOOTSTRAP_ADMIN_PASSWORD")),

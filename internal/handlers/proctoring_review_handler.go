@@ -3,18 +3,22 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"strings"
 	"time"
 
 	"kslasbackend/internal/dto"
+	"kslasbackend/internal/services"
 )
 
-type ProctoringReviewHandler struct{}
+type ProctoringReviewHandler struct {
+	openAIReview *services.OpenAIPreExamReviewService
+}
 
-func NewProctoringReviewHandler() *ProctoringReviewHandler {
-	return &ProctoringReviewHandler{}
+func NewProctoringReviewHandler(openAIReview *services.OpenAIPreExamReviewService) *ProctoringReviewHandler {
+	return &ProctoringReviewHandler{openAIReview: openAIReview}
 }
 
 func (h *ProctoringReviewHandler) PreExamReview(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +44,29 @@ func (h *ProctoringReviewHandler) PreExamReview(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	writeJSON(w, http.StatusOK, fallbackPreExamReview(req, uploadedEvidenceFiles(r.MultipartForm)))
+	evidence := uploadedReviewEvidence(r.MultipartForm)
+	fallback := fallbackPreExamReview(req, uploadedEvidenceFiles(evidence))
+	if h.openAIReview != nil && h.openAIReview.Enabled() {
+		review, err := h.openAIReview.ReviewPreExam(r.Context(), req, evidence, fallback)
+		if err == nil {
+			writeJSON(w, http.StatusOK, review)
+			return
+		}
+		fallback.Source = "fallback"
+		fallback.Issues = append(fallback.Issues, "AI review service unavailable: "+err.Error())
+		fallback.Actions = append(fallback.Actions, "Please contact an invigilator if this message persists.")
+		if fallback.Decision == "approved" {
+			fallback.Decision = "review_required"
+			fallback.RiskLevel = "medium"
+			fallback.RiskScore = 55
+			fallback.Summary = "Invigilator review required because the AI review service is unavailable."
+		}
+		writeJSON(w, http.StatusOK, fallback)
+		return
+	}
+
+	fallback.Source = "fallback"
+	writeJSON(w, http.StatusOK, fallback)
 }
 
 func (h *ProctoringReviewHandler) LiveEvent(w http.ResponseWriter, r *http.Request) {
@@ -79,20 +105,43 @@ func (h *ProctoringReviewHandler) LiveEvent(w http.ResponseWriter, r *http.Reque
 	})
 }
 
-func uploadedEvidenceFiles(form *multipart.Form) map[string]bool {
-	uploaded := map[string]bool{}
+func uploadedReviewEvidence(form *multipart.Form) services.ProctoringReviewEvidence {
+	evidence := services.ProctoringReviewEvidence{Files: []services.ProctoringEvidenceFile{}}
 	if form == nil {
-		return uploaded
+		return evidence
 	}
 
 	for field, files := range form.File {
-		for _, file := range files {
-			if file.Filename == "" {
+		for _, header := range files {
+			if header.Filename == "" {
 				continue
 			}
-			uploaded[field] = true
-			uploaded[file.Filename] = true
+			file, err := header.Open()
+			if err != nil {
+				continue
+			}
+			data, _ := io.ReadAll(io.LimitReader(file, 10<<20))
+			_ = file.Close()
+			evidence.Files = append(evidence.Files, services.ProctoringEvidenceFile{
+				FieldName:   field,
+				FileName:    header.Filename,
+				ContentType: header.Header.Get("Content-Type"),
+				SizeBytes:   header.Size,
+				Data:        data,
+			})
 		}
+	}
+	return evidence
+}
+
+func uploadedEvidenceFiles(evidence services.ProctoringReviewEvidence) map[string]bool {
+	uploaded := map[string]bool{}
+	for _, file := range evidence.Files {
+		if file.FileName == "" {
+			continue
+		}
+		uploaded[file.FieldName] = true
+		uploaded[file.FileName] = true
 	}
 	return uploaded
 }
@@ -220,12 +269,12 @@ func fallbackPreExamReview(req dto.PreExamReviewRequest, uploaded map[string]boo
 		decision = "rescan_required"
 		riskScore = 45
 		riskLevel = "medium"
-		summary = "Some checks need correction before the exam can start."
+		summary = correctionSummary(findings)
 	} else if len(riskLabels) > 0 || audioReview {
 		decision = "review_required"
 		riskScore = 62
 		riskLevel = "medium"
-		summary = "Review required before exam startup."
+		summary = reviewSummary(findings)
 	}
 
 	return dto.PreExamReviewResponse{
@@ -234,6 +283,9 @@ func fallbackPreExamReview(req dto.PreExamReviewRequest, uploaded map[string]boo
 		RiskLevel: riskLevel,
 		RiskScore: riskScore,
 		Summary:   summary,
+		Issues:    issueList(findings),
+		Actions:   actionList(decision, findings),
+		Source:    "fallback",
 		Findings:  findings,
 	}
 }
@@ -324,6 +376,67 @@ func audioIsClassifiedOrAllowed(audio *dto.PreExamReviewAudioRequest) bool {
 		}
 	}
 	return false
+}
+
+func correctionSummary(findings []dto.ReviewFindingResponse) string {
+	issues := issueList(findings)
+	if len(issues) == 0 {
+		return "Correction required before the exam can start."
+	}
+	return "Correction required: " + strings.Join(issues, " ")
+}
+
+func reviewSummary(findings []dto.ReviewFindingResponse) string {
+	issues := issueList(findings)
+	if len(issues) == 0 {
+		return "Invigilator review required before exam startup."
+	}
+	return "Invigilator review required: " + strings.Join(issues, " ")
+}
+
+func issueList(findings []dto.ReviewFindingResponse) []string {
+	issues := []string{}
+	for _, finding := range findings {
+		severity := strings.ToLower(strings.TrimSpace(finding.Severity))
+		if severity != "warning" && severity != "error" && severity != "critical" {
+			continue
+		}
+		detail := strings.TrimSpace(finding.Detail)
+		if detail == "" {
+			detail = strings.TrimSpace(finding.Title)
+		}
+		if detail != "" {
+			issues = append(issues, detail)
+		}
+	}
+	return uniqueStrings(issues)
+}
+
+func actionList(decision string, findings []dto.ReviewFindingResponse) []string {
+	if decision == "approved" {
+		return []string{"Click OK to start the exam."}
+	}
+
+	actions := []string{}
+	for _, issue := range issueList(findings) {
+		lower := strings.ToLower(issue)
+		switch {
+		case strings.Contains(lower, "missing scan targets"):
+			actions = append(actions, "Capture all required room scan targets again.")
+		case strings.Contains(lower, "low lighting"):
+			actions = append(actions, "Move to a brighter location or turn on more light.")
+		case strings.Contains(lower, "missing image"):
+			actions = append(actions, "Rescan so the missing image evidence can be uploaded.")
+		case strings.Contains(lower, "microphone") || strings.Contains(lower, "sound") || strings.Contains(lower, "audio"):
+			actions = append(actions, "Repeat the sound check in a quiet room with microphone access enabled.")
+		case strings.Contains(lower, "unauthorized") || strings.Contains(lower, "phone") || strings.Contains(lower, "book"):
+			actions = append(actions, "Remove unauthorized materials and request review again.")
+		}
+	}
+	if len(actions) == 0 {
+		actions = append(actions, "Correct the listed issue and run the security review again.")
+	}
+	return uniqueStrings(actions)
 }
 
 func uniqueStrings(values []string) []string {

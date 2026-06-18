@@ -11,12 +11,15 @@ type PreExamReviewTargetRequest struct {
 }
 
 type PreExamReviewRequest struct {
-	StudentID  string                       `json:"student_id"`
-	ExamID     string                       `json:"exam_id"`
-	AttemptID  string                       `json:"attempt_id"`
-	CapturedAt string                       `json:"captured_at"`
-	Audio      *PreExamReviewAudioRequest   `json:"audio,omitempty"`
-	Targets    []PreExamReviewTargetRequest `json:"targets"`
+	StudentID    string                       `json:"student_id"`
+	ExamID       string                       `json:"exam_id"`
+	AttemptID    string                       `json:"attempt_id"`
+	CapturedAt   string                       `json:"captured_at"`
+	FaceImageKey string                       `json:"face_image_key,omitempty"`
+	SystemReview map[string]interface{}       `json:"system_review,omitempty"`
+	FaceIdentity map[string]interface{}       `json:"face_identity,omitempty"`
+	Audio        *PreExamReviewAudioRequest   `json:"audio,omitempty"`
+	Targets      []PreExamReviewTargetRequest `json:"targets"`
 }
 
 type PreExamReviewAudioRequest struct {
@@ -48,6 +51,9 @@ type PreExamReviewResponse struct {
 	RiskLevel string                  `json:"risk_level"`
 	RiskScore int                     `json:"risk_score"`
 	Summary   string                  `json:"summary"`
+	Issues    []string                `json:"issues,omitempty"`
+	Actions   []string                `json:"actions,omitempty"`
+	Source    string                  `json:"source,omitempty"`
 	Findings  []ReviewFindingResponse `json:"findings"`
 }
 
