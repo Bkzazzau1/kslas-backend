@@ -50,3 +50,21 @@ type PreExamReviewResponse struct {
 	Summary   string                  `json:"summary"`
 	Findings  []ReviewFindingResponse `json:"findings"`
 }
+
+type LiveProctoringEventRequest struct {
+	StudentID string                 `json:"student_id"`
+	ExamID    string                 `json:"exam_id"`
+	AttemptID string                 `json:"attempt_id"`
+	EventType string                 `json:"event_type"`
+	Severity  string                 `json:"severity"`
+	Message   string                 `json:"message"`
+	CreatedAt string                 `json:"created_at"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+}
+
+type LiveProctoringEventResponse struct {
+	EventID       string `json:"event_id"`
+	Accepted      bool   `json:"accepted"`
+	Action        string `json:"action"`
+	StudentNotice string `json:"student_notice"`
+}
