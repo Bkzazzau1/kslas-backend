@@ -133,10 +133,10 @@ func fallbackPreExamReview(req dto.PreExamReviewRequest, uploaded map[string]boo
 	}
 
 	if req.Audio == nil {
-		audioReview = true
+		audioRescan = true
 		findings = append(findings, dto.ReviewFindingResponse{
-			Title:    "Sound check pending",
-			Detail:   "Room sound could not be checked.",
+			Title:    "Sound check required",
+			Detail:   "Room sound was not checked. Please repeat the sound check before exam startup.",
 			Severity: "warning",
 		})
 	} else if !req.Audio.MicrophoneAvailable || !req.Audio.PermissionGranted || !req.Audio.InputLevelOK {
