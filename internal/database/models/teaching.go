@@ -754,7 +754,7 @@ type AssignmentGroup struct {
 	UpdatedAt    time.Time
 
 	Assignment Assignment              `gorm:"foreignKey:AssignmentID;constraint:OnDelete:CASCADE"`
-	Members    []AssignmentGroupMember `gorm:"constraint:OnDelete:CASCADE"`
+	Members    []AssignmentGroupMember `gorm:"foreignKey:GroupID;constraint:OnDelete:CASCADE"`
 }
 
 func (g *AssignmentGroup) BeforeCreate(_ *gorm.DB) error {
@@ -812,7 +812,7 @@ type AssignmentSubmission struct {
 	Assignment Assignment                 `gorm:"foreignKey:AssignmentID;constraint:OnDelete:CASCADE"`
 	Student    User                       `gorm:"foreignKey:StudentID;constraint:OnDelete:CASCADE"`
 	Group      *AssignmentGroup           `gorm:"foreignKey:GroupID;constraint:OnDelete:SET NULL"`
-	Files      []AssignmentSubmissionFile `gorm:"constraint:OnDelete:CASCADE"`
+	Files      []AssignmentSubmissionFile `gorm:"foreignKey:SubmissionID;constraint:OnDelete:CASCADE"`
 }
 
 func (s *AssignmentSubmission) BeforeCreate(_ *gorm.DB) error {
@@ -1180,8 +1180,8 @@ type ExamAttempt struct {
 
 	Exam        Exam                   `gorm:"foreignKey:ExamID;constraint:OnDelete:CASCADE"`
 	Student     User                   `gorm:"foreignKey:StudentID;constraint:OnDelete:CASCADE"`
-	Alerts      []ProctoringAlert      `gorm:"constraint:OnDelete:CASCADE"`
-	Annotations []ExamScriptAnnotation `gorm:"constraint:OnDelete:CASCADE"`
+	Alerts      []ProctoringAlert      `gorm:"foreignKey:AttemptID;constraint:OnDelete:CASCADE"`
+	Annotations []ExamScriptAnnotation `gorm:"foreignKey:AttemptID;constraint:OnDelete:CASCADE"`
 }
 
 func (a *ExamAttempt) BeforeCreate(_ *gorm.DB) error {
