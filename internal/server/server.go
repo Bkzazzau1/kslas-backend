@@ -21,6 +21,7 @@ type Dependencies struct {
 	ExamHandler                *handlers.ExamHandler
 	InvigilatorEvidenceHandler *handlers.InvigilatorEvidenceHandler
 	ProctoringReviewHandler    *handlers.ProctoringReviewHandler
+	IdentityHandler            *handlers.IdentityHandler
 	ResultHandler              *handlers.ResultHandler
 	ReportHandler              *handlers.ReportHandler
 	JWTService                 *services.JWTService
@@ -384,6 +385,22 @@ func NewRouter(dep *Dependencies) http.Handler {
 	mux.Handle(
 		"/api/proctoring/live-events",
 		method(http.MethodPost, http.HandlerFunc(dep.ProctoringReviewHandler.LiveEvent)),
+	)
+	mux.Handle(
+		"/api/identity/face-enrollment",
+		method(http.MethodPost, http.HandlerFunc(dep.IdentityHandler.FaceEnrollment)),
+	)
+	mux.Handle(
+		"/api/identity/face-enrollments",
+		method(http.MethodGet, http.HandlerFunc(dep.IdentityHandler.FaceEnrollments)),
+	)
+	mux.Handle(
+		"/api/identity/face-enrollments/{enrollmentID}",
+		method(http.MethodGet, http.HandlerFunc(dep.IdentityHandler.FaceEnrollmentByID)),
+	)
+	mux.Handle(
+		"/api/identity/face-enrollments/{enrollmentID}/images/{fileName}",
+		method(http.MethodGet, http.HandlerFunc(dep.IdentityHandler.FaceEnrollmentImage)),
 	)
 	mux.Handle(
 		"/api/results",
