@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -58,6 +59,24 @@ func (h *IdentityHandler) FaceEnrollment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if existing, ok := h.latestEnrollmentForStudent(studentID); ok && existing.Locked {
+		writeJSON(w, http.StatusConflict, dto.FaceEnrollmentResponse{
+			EnrollmentID:            existing.EnrollmentID,
+			StudentID:               existing.StudentID,
+			Status:                  existing.Status,
+			Locked:                  true,
+			Message:                 "Face ID is already enrolled and locked. Contact an authorized officer for reset.",
+			CapturedAt:              existing.CapturedAt,
+			StoredAt:                existing.StoredAt,
+			RequiredImages:          existing.RequiredImages,
+			UploadedImages:          existing.UploadedImages,
+			Purpose:                 existing.Purpose,
+			ReviewableByInvigilator: existing.ReviewableByInvigilator,
+			Images:                  publicImages(existing.Images),
+		})
+		return
+	}
+
 	if len(req.Images) < 5 {
 		writeError(w, http.StatusBadRequest, "at least five guided identity images are required")
 		return
@@ -84,8 +103,9 @@ func (h *IdentityHandler) FaceEnrollment(w http.ResponseWriter, r *http.Request)
 	response := dto.FaceEnrollmentResponse{
 		EnrollmentID:            enrollmentID,
 		StudentID:               studentID,
-		Status:                  "submitted",
-		Message:                 "Identity images submitted and stored for invigilator review.",
+		Status:                  "active_locked",
+		Locked:                  true,
+		Message:                 "Face ID enrolled, stored on backend, and locked for examination identity verification.",
 		CapturedAt:              req.CapturedAt,
 		StoredAt:                storedAt,
 		RequiredImages:          req.RequiredImages,
@@ -112,7 +132,29 @@ func (h *IdentityHandler) FaceEnrollment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	response.ManifestPath = ""
+	response.Images = publicImages(response.Images)
 	writeJSON(w, http.StatusCreated, response)
+}
+
+func (h *IdentityHandler) FaceEnrollmentLatest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeMethodNotAllowed(w, http.MethodGet)
+		return
+	}
+	studentID := strings.TrimSpace(r.URL.Query().Get("student_id"))
+	if studentID == "" {
+		writeError(w, http.StatusBadRequest, "student_id is required")
+		return
+	}
+	item, ok := h.latestEnrollmentForStudent(studentID)
+	if !ok {
+		writeError(w, http.StatusNotFound, "face enrollment not found")
+		return
+	}
+	item.ManifestPath = ""
+	item.Images = publicImages(item.Images)
+	writeJSON(w, http.StatusOK, item)
 }
 
 func (h *IdentityHandler) FaceEnrollments(w http.ResponseWriter, r *http.Request) {
@@ -134,6 +176,8 @@ func (h *IdentityHandler) FaceEnrollments(w http.ResponseWriter, r *http.Request
 		if studentFilter != "" && item.StudentID != studentFilter {
 			return nil
 		}
+		item.ManifestPath = ""
+		item.Images = publicImages(item.Images)
 		items = append(items, item)
 		return nil
 	})
@@ -153,6 +197,8 @@ func (h *IdentityHandler) FaceEnrollmentByID(w http.ResponseWriter, r *http.Requ
 		writeError(w, http.StatusNotFound, "identity enrollment not found")
 		return
 	}
+	item.ManifestPath = ""
+	item.Images = publicImages(item.Images)
 	writeJSON(w, http.StatusOK, item)
 }
 
@@ -214,6 +260,30 @@ func (h *IdentityHandler) storeEnrollmentImages(enrollmentID, enrollmentDir stri
 	return stored, nil
 }
 
+func (h *IdentityHandler) latestEnrollmentForStudent(studentID string) (dto.FaceEnrollmentResponse, bool) {
+	items := []dto.FaceEnrollmentResponse{}
+	_ = filepath.WalkDir(h.storageRoot, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || entry.Name() != "enrollment.json" {
+			return nil
+		}
+		var item dto.FaceEnrollmentResponse
+		if err := readJSONFile(path, &item); err != nil {
+			return nil
+		}
+		if item.StudentID == studentID {
+			items = append(items, item)
+		}
+		return nil
+	})
+	if len(items) == 0 {
+		return dto.FaceEnrollmentResponse{}, false
+	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].StoredAt > items[j].StoredAt
+	})
+	return items[0], true
+}
+
 func (h *IdentityHandler) findEnrollment(enrollmentID string) (dto.FaceEnrollmentResponse, bool) {
 	var found dto.FaceEnrollmentResponse
 	if enrollmentID == "" {
@@ -234,6 +304,15 @@ func (h *IdentityHandler) findEnrollment(enrollmentID string) (dto.FaceEnrollmen
 		return nil
 	})
 	return found, found.EnrollmentID != ""
+}
+
+func publicImages(images []dto.FaceEnrollmentImageResponse) []dto.FaceEnrollmentImageResponse {
+	public := make([]dto.FaceEnrollmentImageResponse, 0, len(images))
+	for _, image := range images {
+		image.StoredPath = ""
+		public = append(public, image)
+	}
+	return public
 }
 
 func saveUploadedFile(header *multipart.FileHeader, destination string) error {
