@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"log"
 	"net/http"
 
 	"kslasbackend/internal/dto"
@@ -30,6 +31,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, services.ErrInvalidCredentials), errors.Is(err, services.ErrInactiveAccount):
 			writeError(w, http.StatusUnauthorized, "invalid credentials")
 		default:
+			log.Printf("login failed internal error: %v", err)
 			writeError(w, http.StatusInternalServerError, "login failed")
 		}
 		return

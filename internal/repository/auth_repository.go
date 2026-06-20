@@ -27,7 +27,13 @@ func (r *AuthRepository) FindUserByIdentity(ctx context.Context, identity string
 			return db.Order("is_primary DESC, created_at ASC")
 		}).
 		Preload("UserRoles.Role").
-		Where("LOWER(email) = ? OR phone = ? OR matric_no = ? OR staff_id = ?", strings.ToLower(identity), identity, identity, identity).
+		Where(
+			"LOWER(email) = ? OR phone = ? OR matric_no = ? OR staff_id = ?",
+			strings.ToLower(identity),
+			identity,
+			identity,
+			identity,
+		).
 		First(&user).Error
 	if err != nil {
 		return nil, err
@@ -55,6 +61,6 @@ func (r *AuthRepository) UpdateLastLogin(ctx context.Context, userID uint, at ti
 	return r.db.WithContext(ctx).
 		Model(&models.User{}).
 		Where("id = ?", userID).
-		Update("last_login_at", at.UTC()).
+		UpdateColumn("last_login_at", at.UTC()).
 		Error
 }
