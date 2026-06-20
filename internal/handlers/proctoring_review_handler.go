@@ -87,14 +87,27 @@ func (h *ProctoringReviewHandler) LiveEvent(w http.ResponseWriter, r *http.Reque
 	}
 
 	severity := strings.ToLower(strings.TrimSpace(req.Severity))
+	audience := strings.ToLower(strings.TrimSpace(req.ReviewAudience))
+	if audience == "" {
+		audience = "invigilator"
+	}
 	action := "log_only"
-	notice := "Exam monitoring event recorded."
-	if severity == "critical" || severity == "high" {
+	notice := reviewAudienceNotice(audience, req.AssessmentType)
+	switch severity {
+	case "critical", "high":
 		action = "pause_and_review"
-		notice = "A monitoring issue was detected. Please wait for review or follow the displayed instruction."
-	} else if severity == "medium" || severity == "warning" {
+		if audience == "lecturer" {
+			notice = "A graded assessment issue was recorded for lecturer review."
+		} else {
+			notice = "A monitoring issue was detected. Please wait for invigilator review or follow the displayed instruction."
+		}
+	case "medium", "warning":
 		action = "flag_for_review"
-		notice = "A monitoring warning was recorded. Continue only if the issue is corrected."
+		if audience == "lecturer" {
+			notice = "A graded assessment warning was recorded for lecturer review."
+		} else {
+			notice = "A monitoring warning was recorded. Continue only if the issue is corrected."
+		}
 	}
 
 	writeJSON(w, http.StatusCreated, dto.LiveProctoringEventResponse{
@@ -103,6 +116,13 @@ func (h *ProctoringReviewHandler) LiveEvent(w http.ResponseWriter, r *http.Reque
 		Action:        action,
 		StudentNotice: notice,
 	})
+}
+
+func reviewAudienceNotice(audience, assessmentType string) string {
+	if audience == "lecturer" || strings.EqualFold(strings.TrimSpace(assessmentType), "graded_assessment") {
+		return "Graded assessment event recorded for lecturer review."
+	}
+	return "Exam monitoring event recorded for invigilator review."
 }
 
 func uploadedReviewEvidence(form *multipart.Form) services.ProctoringReviewEvidence {

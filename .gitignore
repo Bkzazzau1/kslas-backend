@@ -10,6 +10,7 @@
 *.test
 coverage.out
 coverage.html
+.gocache/
 
 # Dependency vendoring
 /vendor/

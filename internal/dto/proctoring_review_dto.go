@@ -85,14 +85,16 @@ type ExamStartApprovalResponse struct {
 }
 
 type LiveProctoringEventRequest struct {
-	StudentID string                 `json:"student_id"`
-	ExamID    string                 `json:"exam_id"`
-	AttemptID string                 `json:"attempt_id"`
-	EventType string                 `json:"event_type"`
-	Severity  string                 `json:"severity"`
-	Message   string                 `json:"message"`
-	CreatedAt string                 `json:"created_at"`
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	StudentID      string                 `json:"student_id"`
+	ExamID         string                 `json:"exam_id"`
+	AttemptID      string                 `json:"attempt_id"`
+	AssessmentType string                 `json:"assessment_type,omitempty"`
+	ReviewAudience string                 `json:"review_audience,omitempty"`
+	EventType      string                 `json:"event_type"`
+	Severity       string                 `json:"severity"`
+	Message        string                 `json:"message"`
+	CreatedAt      string                 `json:"created_at"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type LiveProctoringEventResponse struct {
