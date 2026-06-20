@@ -42,6 +42,16 @@ func (h *ProctoringReviewHandler) StartApproval(w http.ResponseWriter, r *http.R
 		issues = append(issues, "System device review is not ready.")
 	}
 
+	blockingAudioIssue := boolFromReview(req.AudioReview, "human_voice_detected") ||
+		boolFromReview(req.AudioReview, "phone_ring_detected") ||
+		boolFromReview(req.AudioReview, "notification_detected") ||
+		boolFromReview(req.AudioReview, "tv_or_radio_voice_detected") ||
+		!boolFromReview(req.AudioReview, "ambient_noise_allowed")
+
+	if len(req.AudioReview) > 0 && blockingAudioIssue {
+		issues = append(issues, "Blocking audio environment issue is still present.")
+	}
+
 	blockingSystemIssue := boolFromReview(req.SystemReview, "bluetooth_detected") ||
 		boolFromReview(req.SystemReview, "external_audio_detected") ||
 		boolFromReview(req.SystemReview, "usb_risk_detected") ||
@@ -55,6 +65,7 @@ func (h *ProctoringReviewHandler) StartApproval(w http.ResponseWriter, r *http.R
 	}
 
 	warningOnly := boolFromReview(req.SystemReview, "virtualization_warning_detected") && !blockingSystemIssue
+	learnedSoundProfile := strings.TrimSpace(stringFromReview(req.AudioReview, "sound_profile"))
 
 	response := dto.ExamStartApprovalResponse{
 		Status:              "approved_to_start",
@@ -77,6 +88,9 @@ func (h *ProctoringReviewHandler) StartApproval(w http.ResponseWriter, r *http.R
 	if warningOnly {
 		response.AIRecommendation = "review_note"
 		response.Message = "Backend approved this attempt with a recorded Windows security virtualization note."
+	}
+	if learnedSoundProfile != "" && response.AIRecommendation == "low_risk" {
+		response.Message = "Backend approved this attempt. Learned sound profile: " + strings.ReplaceAll(learnedSoundProfile, "_", " ") + "."
 	}
 
 	token, err := newExamStartToken(req.AttemptID)
@@ -105,6 +119,17 @@ func boolFromReview(review map[string]interface{}, key string) bool {
 	default:
 		return fmt.Sprint(typed) == "true"
 	}
+}
+
+func stringFromReview(review map[string]interface{}, key string) string {
+	if review == nil {
+		return ""
+	}
+	value, ok := review[key]
+	if !ok {
+		return ""
+	}
+	return fmt.Sprint(value)
 }
 
 func newExamStartToken(attemptID string) (string, error) {
