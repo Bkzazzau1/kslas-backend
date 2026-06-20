@@ -66,6 +66,7 @@ type ExamStartApprovalRequest struct {
 	RoomScanReady bool                   `json:"room_scan_ready"`
 	AudioReady    bool                   `json:"audio_ready"`
 	SystemReady   bool                   `json:"system_ready"`
+	AudioReview   map[string]interface{} `json:"audio_review,omitempty"`
 	SystemReview  map[string]interface{} `json:"system_review,omitempty"`
 	Source        string                 `json:"source,omitempty"`
 }
