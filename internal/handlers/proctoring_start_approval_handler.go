@@ -29,8 +29,8 @@ func (h *ProctoringReviewHandler) StartApproval(w http.ResponseWriter, r *http.R
 	}
 
 	issues := []string{}
-	if !req.FaceIDReady {
-		issues = append(issues, "Face ID is not ready.")
+	if !req.FaceIDReady || !req.FaceIDLocked || strings.TrimSpace(req.FaceEnrollmentID) == "" {
+		issues = append(issues, "Locked backend Face ID enrollment is required before exam start.")
 	}
 	if !req.RoomScanReady || strings.TrimSpace(req.ManifestPath) == "" {
 		issues = append(issues, "360 room scan evidence is not ready.")
