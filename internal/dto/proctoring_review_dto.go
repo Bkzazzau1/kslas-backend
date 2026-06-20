@@ -57,6 +57,30 @@ type PreExamReviewResponse struct {
 	Findings  []ReviewFindingResponse `json:"findings"`
 }
 
+type ExamStartApprovalRequest struct {
+	StudentID     string                 `json:"student_id"`
+	ExamID        string                 `json:"exam_id"`
+	AttemptID     string                 `json:"attempt_id"`
+	ManifestPath  string                 `json:"manifest_path"`
+	FaceIDReady   bool                   `json:"face_id_ready"`
+	RoomScanReady bool                   `json:"room_scan_ready"`
+	AudioReady    bool                   `json:"audio_ready"`
+	SystemReady   bool                   `json:"system_ready"`
+	SystemReview  map[string]interface{} `json:"system_review,omitempty"`
+	Source        string                 `json:"source,omitempty"`
+}
+
+type ExamStartApprovalResponse struct {
+	Status              string   `json:"status"`
+	ApprovalSource      string   `json:"approval_source"`
+	AIRecommendation    string   `json:"ai_recommendation"`
+	RequiresHumanReview bool     `json:"requires_human_review"`
+	ExamStartToken      string   `json:"exam_start_token,omitempty"`
+	Message             string   `json:"message"`
+	Issues              []string `json:"issues,omitempty"`
+	ExpiresAt           string   `json:"expires_at,omitempty"`
+}
+
 type LiveProctoringEventRequest struct {
 	StudentID string                 `json:"student_id"`
 	ExamID    string                 `json:"exam_id"`
