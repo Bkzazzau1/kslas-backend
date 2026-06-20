@@ -18,6 +18,7 @@ coverage.html
 # Local environment files
 .env
 .env.local
+/storage/
 
 # OS/editor noise
 .DS_Store
