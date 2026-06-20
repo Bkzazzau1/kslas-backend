@@ -98,6 +98,7 @@ func NewRouter(dep *Dependencies) http.Handler {
 	mux.Handle("/api/invigilator/evidence/{caseID}/decision", chain(http.HandlerFunc(dep.InvigilatorEvidenceHandler.Decision), middleware.AuthMiddleware(dep.JWTService)))
 
 	mux.Handle("/api/proctoring/pre-exam-review", method(http.MethodPost, http.HandlerFunc(dep.ProctoringReviewHandler.PreExamReview)))
+	mux.Handle("/api/proctoring/start-approval", method(http.MethodPost, http.HandlerFunc(dep.ProctoringReviewHandler.StartApproval)))
 	mux.Handle("/api/proctoring/live-events", method(http.MethodPost, http.HandlerFunc(dep.ProctoringReviewHandler.LiveEvent)))
 	mux.Handle("/api/proctoring/random-video-samples", method(http.MethodPost, http.HandlerFunc(dep.ProctoringReviewHandler.RandomVideoSample)))
 	mux.Handle("/api/proctoring/random-video-samples/list", method(http.MethodGet, http.HandlerFunc(dep.ProctoringReviewHandler.RandomVideoSamples)))
