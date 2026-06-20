@@ -106,6 +106,7 @@ func NewRouter(dep *Dependencies) http.Handler {
 	mux.Handle("/api/proctoring/random-video-samples/{sampleID}/file", method(http.MethodGet, http.HandlerFunc(dep.ProctoringReviewHandler.RandomVideoSampleFile)))
 
 	mux.Handle("/api/identity/face-enrollment", method(http.MethodPost, http.HandlerFunc(dep.IdentityHandler.FaceEnrollment)))
+	mux.Handle("/api/identity/face-enrollments/latest", method(http.MethodGet, http.HandlerFunc(dep.IdentityHandler.FaceEnrollmentLatest)))
 	mux.Handle("/api/identity/face-enrollments", method(http.MethodGet, http.HandlerFunc(dep.IdentityHandler.FaceEnrollments)))
 	mux.Handle("/api/identity/face-enrollments/{enrollmentID}", method(http.MethodGet, http.HandlerFunc(dep.IdentityHandler.FaceEnrollmentByID)))
 	mux.Handle("/api/identity/face-enrollments/{enrollmentID}/images/{fileName}", method(http.MethodGet, http.HandlerFunc(dep.IdentityHandler.FaceEnrollmentImage)))
