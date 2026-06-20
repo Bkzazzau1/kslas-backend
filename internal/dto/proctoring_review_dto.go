@@ -58,17 +58,19 @@ type PreExamReviewResponse struct {
 }
 
 type ExamStartApprovalRequest struct {
-	StudentID     string                 `json:"student_id"`
-	ExamID        string                 `json:"exam_id"`
-	AttemptID     string                 `json:"attempt_id"`
-	ManifestPath  string                 `json:"manifest_path"`
-	FaceIDReady   bool                   `json:"face_id_ready"`
-	RoomScanReady bool                   `json:"room_scan_ready"`
-	AudioReady    bool                   `json:"audio_ready"`
-	SystemReady   bool                   `json:"system_ready"`
-	AudioReview   map[string]interface{} `json:"audio_review,omitempty"`
-	SystemReview  map[string]interface{} `json:"system_review,omitempty"`
-	Source        string                 `json:"source,omitempty"`
+	StudentID        string                 `json:"student_id"`
+	ExamID           string                 `json:"exam_id"`
+	AttemptID        string                 `json:"attempt_id"`
+	ManifestPath     string                 `json:"manifest_path"`
+	FaceIDReady      bool                   `json:"face_id_ready"`
+	FaceIDLocked     bool                   `json:"face_id_locked"`
+	FaceEnrollmentID string                 `json:"face_enrollment_id"`
+	RoomScanReady    bool                   `json:"room_scan_ready"`
+	AudioReady       bool                   `json:"audio_ready"`
+	SystemReady      bool                   `json:"system_ready"`
+	AudioReview      map[string]interface{} `json:"audio_review,omitempty"`
+	SystemReview     map[string]interface{} `json:"system_review,omitempty"`
+	Source           string                 `json:"source,omitempty"`
 }
 
 type ExamStartApprovalResponse struct {
