@@ -25,7 +25,7 @@ type FaceEnrollmentImageResponse struct {
 	Instruction  string  `json:"instruction"`
 	QualityScore float64 `json:"quality_score"`
 	FileName     string  `json:"file_name"`
-	StoredPath   string  `json:"stored_path"`
+	StoredPath   string  `json:"stored_path,omitempty"`
 	ViewURL      string  `json:"view_url"`
 }
 
@@ -33,6 +33,7 @@ type FaceEnrollmentResponse struct {
 	EnrollmentID            string                        `json:"enrollment_id"`
 	StudentID               string                        `json:"student_id"`
 	Status                  string                        `json:"status"`
+	Locked                  bool                          `json:"locked"`
 	Message                 string                        `json:"message"`
 	CapturedAt              string                        `json:"captured_at"`
 	StoredAt                string                        `json:"stored_at"`
@@ -40,7 +41,7 @@ type FaceEnrollmentResponse struct {
 	UploadedImages          int                           `json:"uploaded_images"`
 	Purpose                 string                        `json:"purpose"`
 	ReviewableByInvigilator bool                          `json:"reviewable_by_invigilator"`
-	ManifestPath            string                        `json:"manifest_path"`
+	ManifestPath            string                        `json:"manifest_path,omitempty"`
 	Images                  []FaceEnrollmentImageResponse `json:"images"`
 }
 
