@@ -17,13 +17,13 @@ type moderationPayload struct {
 }
 
 func (h *AssessmentHandler) listModeratorAssessments(w http.ResponseWriter, r *http.Request) {
-	statuses := []string{"submitted_to_moderator", "returned_for_correction"}
-	if status := r.URL.Query().Get("status"); status != "" {
+	statuses := []string{"sent_to_moderator"}
+	if status := r.URL.Query().Get("moderation_status"); status != "" {
 		statuses = []string{status}
 	}
 
 	var assessments []models.Assessment
-	if err := h.db.Preload("Course").Preload("Questions.Options").Where("status IN ?", statuses).Order("updated_at desc").Find(&assessments).Error; err != nil {
+	if err := h.db.Preload("Course").Preload("Questions.Options").Where("moderation_status IN ?", statuses).Order("updated_at desc").Find(&assessments).Error; err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -48,35 +48,30 @@ func (h *AssessmentHandler) moderatorAssessmentAction(w http.ResponseWriter, r *
 		writeError(w, http.StatusNotFound, "assessment not found")
 		return
 	}
+	if assessment.ModerationStatus != "sent_to_moderator" {
+		writeError(w, http.StatusBadRequest, "assessment is not currently with moderator")
+		return
+	}
 
+	fromStatus := assessment.ModerationStatus
 	switch action {
 	case "approve":
-		if assessment.Status != "submitted_to_moderator" {
-			writeError(w, http.StatusBadRequest, "only assessments submitted to moderator can be approved")
-			return
-		}
-		fromStatus := assessment.Status
-		assessment.Status = "approved_by_moderator"
-		assessment.ModerationStatus = assessment.Status
+		assessment.Status = "submitted_to_exam_officer"
+		assessment.ModerationStatus = "moderator_approved_to_exam_officer"
 		assessment.ModeratorID = payload.ActorID
 		assessment.ModerationFeedback = firstNonEmpty(payload.Feedback, payload.Comment)
 		assessment.ModeratedAt = nowPtr()
-		if err := h.saveAssessmentWithAction(&assessment, payload.ActorID, "moderator_approved", fromStatus, assessment.Status, assessment.ModerationFeedback); err != nil {
+		if err := h.saveAssessmentWithAction(&assessment, payload.ActorID, "moderator_approved_to_exam_officer", fromStatus, assessment.ModerationStatus, assessment.ModerationFeedback); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 	case "return":
-		if assessment.Status != "submitted_to_moderator" {
-			writeError(w, http.StatusBadRequest, "only assessments submitted to moderator can be returned")
-			return
-		}
-		fromStatus := assessment.Status
-		assessment.Status = "returned_for_correction"
-		assessment.ModerationStatus = assessment.Status
+		assessment.Status = "submitted_to_exam_officer"
+		assessment.ModerationStatus = "moderator_returned_to_exam_officer"
 		assessment.ModeratorID = payload.ActorID
 		assessment.ModerationFeedback = firstNonEmpty(payload.Feedback, payload.Comment)
 		assessment.ModeratedAt = nowPtr()
-		if err := h.saveAssessmentWithAction(&assessment, payload.ActorID, "moderator_returned", fromStatus, assessment.Status, assessment.ModerationFeedback); err != nil {
+		if err := h.saveAssessmentWithAction(&assessment, payload.ActorID, "moderator_returned_to_exam_officer", fromStatus, assessment.ModerationStatus, assessment.ModerationFeedback); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -89,13 +84,18 @@ func (h *AssessmentHandler) moderatorAssessmentAction(w http.ResponseWriter, r *
 }
 
 func (h *AssessmentHandler) listExamOfficerAssessments(w http.ResponseWriter, r *http.Request) {
-	statuses := []string{"submitted_to_exam_officer", "approved_for_exam"}
+	query := h.db.Preload("Course").Preload("Questions.Options").Order("updated_at desc")
 	if status := r.URL.Query().Get("status"); status != "" {
-		statuses = []string{status}
+		query = query.Where("status = ?", status)
+	} else {
+		query = query.Where("status IN ?", []string{"submitted_to_exam_officer", "approved_for_exam"})
+	}
+	if moderationStatus := r.URL.Query().Get("moderation_status"); moderationStatus != "" {
+		query = query.Where("moderation_status = ?", moderationStatus)
 	}
 
 	var assessments []models.Assessment
-	if err := h.db.Preload("Course").Preload("Questions.Options").Where("status IN ?", statuses).Order("updated_at desc").Find(&assessments).Error; err != nil {
+	if err := query.Find(&assessments).Error; err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -121,33 +121,43 @@ func (h *AssessmentHandler) examOfficerAssessmentAction(w http.ResponseWriter, r
 		return
 	}
 
+	fromStatus := assessment.ModerationStatus
 	switch action {
-	case "approve":
+	case "send-to-moderator":
 		if assessment.Status != "submitted_to_exam_officer" {
-			writeError(w, http.StatusBadRequest, "only assessments submitted to exam officer can be approved")
+			writeError(w, http.StatusBadRequest, "assessment must be submitted to exam officer first")
 			return
 		}
-		fromStatus := assessment.Status
-		assessment.Status = "approved_for_exam"
-		assessment.ModerationStatus = assessment.Status
+		assessment.ModerationStatus = "sent_to_moderator"
 		assessment.ExamOfficerID = payload.ActorID
-		assessment.ExamOfficerFeedback = firstNonEmpty(payload.Feedback, payload.Comment)
-		assessment.ExamOfficerApprovedAt = nowPtr()
-		if err := h.saveAssessmentWithAction(&assessment, payload.ActorID, "exam_officer_approved", fromStatus, assessment.Status, assessment.ExamOfficerFeedback); err != nil {
+		if err := h.saveAssessmentWithAction(&assessment, payload.ActorID, "exam_officer_sent_to_moderator", fromStatus, assessment.ModerationStatus, firstNonEmpty(payload.Feedback, payload.Comment)); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-	case "return":
-		if assessment.Status != "submitted_to_exam_officer" {
-			writeError(w, http.StatusBadRequest, "only assessments submitted to exam officer can be returned")
+	case "approve":
+		if assessment.ModerationStatus != "moderator_approved_to_exam_officer" {
+			writeError(w, http.StatusBadRequest, "assessment must return approved from moderator first")
 			return
 		}
-		fromStatus := assessment.Status
-		assessment.Status = "returned_for_correction"
-		assessment.ModerationStatus = assessment.Status
+		assessment.Status = "approved_for_exam"
+		assessment.ModerationStatus = "approved_for_exam"
 		assessment.ExamOfficerID = payload.ActorID
 		assessment.ExamOfficerFeedback = firstNonEmpty(payload.Feedback, payload.Comment)
-		if err := h.saveAssessmentWithAction(&assessment, payload.ActorID, "exam_officer_returned", fromStatus, assessment.Status, assessment.ExamOfficerFeedback); err != nil {
+		assessment.ExamOfficerApprovedAt = nowPtr()
+		if err := h.saveAssessmentWithAction(&assessment, payload.ActorID, "exam_officer_approved", fromStatus, assessment.ModerationStatus, assessment.ExamOfficerFeedback); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	case "return-to-lecturer":
+		if assessment.Status != "submitted_to_exam_officer" && assessment.ModerationStatus != "moderator_returned_to_exam_officer" {
+			writeError(w, http.StatusBadRequest, "only exam officer can return submitted work to lecturer")
+			return
+		}
+		assessment.Status = "returned_to_lecturer"
+		assessment.ModerationStatus = "returned_to_lecturer"
+		assessment.ExamOfficerID = payload.ActorID
+		assessment.ExamOfficerFeedback = firstNonEmpty(payload.Feedback, payload.Comment)
+		if err := h.saveAssessmentWithAction(&assessment, payload.ActorID, "exam_officer_returned_to_lecturer", fromStatus, assessment.ModerationStatus, assessment.ExamOfficerFeedback); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
