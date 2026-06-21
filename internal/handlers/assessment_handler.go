@@ -11,13 +11,9 @@ import (
 	"kslasbackend/internal/models"
 )
 
-type AssessmentHandler struct {
-	db *gorm.DB
-}
+type AssessmentHandler struct { db *gorm.DB }
 
-func NewAssessmentHandler(db *gorm.DB) *AssessmentHandler {
-	return &AssessmentHandler{db: db}
-}
+func NewAssessmentHandler(db *gorm.DB) *AssessmentHandler { return &AssessmentHandler{db: db} }
 
 func (h *AssessmentHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /health", h.health)
@@ -43,119 +39,61 @@ func (h *AssessmentHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/student/answers", h.submitAnswer)
 }
 
-func (h *AssessmentHandler) health(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-}
+func (h *AssessmentHandler) health(w http.ResponseWriter, r *http.Request) { writeJSON(w, http.StatusOK, map[string]string{"status": "ok"}) }
 
 func (h *AssessmentHandler) listAssessments(w http.ResponseWriter, r *http.Request) {
 	query := h.db.Preload("Course").Preload("Questions.Options").Preload("Questions.Assets").Order("updated_at desc")
-	if lecturerID := r.URL.Query().Get("lecturer_id"); lecturerID != "" {
-		query = query.Where("created_by_id = ?", lecturerID)
-	}
-	if courseID := r.URL.Query().Get("course_id"); courseID != "" {
-		query = query.Where("course_id = ?", courseID)
-	}
-	if status := r.URL.Query().Get("status"); status != "" {
-		query = query.Where("status = ?", status)
-	}
-
+	if lecturerID := r.URL.Query().Get("lecturer_id"); lecturerID != "" { query = query.Where("created_by_id = ?", lecturerID) }
+	if courseID := r.URL.Query().Get("course_id"); courseID != "" { query = query.Where("course_id = ?", courseID) }
+	if status := r.URL.Query().Get("status"); status != "" { query = query.Where("status = ?", status) }
 	var assessments []models.Assessment
-	if err := query.Find(&assessments).Error; err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
+	if err := query.Find(&assessments).Error; err != nil { writeError(w, http.StatusInternalServerError, err.Error()); return }
 	writeJSON(w, http.StatusOK, assessments)
 }
 
 func (h *AssessmentHandler) createAssessment(w http.ResponseWriter, r *http.Request) {
 	var assessment models.Assessment
-	if err := decodeJSON(w, r, &assessment); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if assessment.CreatedByID != nil && !h.lecturerHasActiveCourseAssignment(*assessment.CreatedByID, assessment.CourseID) {
-		writeError(w, http.StatusForbidden, "lecturer is not assigned to this course")
-		return
-	}
-	if err := h.db.Create(&assessment).Error; err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
+	if err := decodeJSON(w, r, &assessment); err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
+	if assessment.CreatedByID != nil && !h.lecturerHasActiveCourseAssignment(*assessment.CreatedByID, assessment.CourseID) { writeError(w, http.StatusForbidden, "not assigned to this course"); return }
+	if err := h.db.Create(&assessment).Error; err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
 	writeJSON(w, http.StatusCreated, assessment)
 }
 
 func (h *AssessmentHandler) assessmentAction(w http.ResponseWriter, r *http.Request) {
 	id, action, ok := splitIDAction(r.URL.Path, "/api/lecturer/assessments/")
-	if !ok {
-		writeError(w, http.StatusNotFound, "invalid assessment action")
-		return
-	}
-
+	if !ok { writeError(w, http.StatusNotFound, "invalid action"); return }
 	var payload moderationPayload
-	if err := decodeOptionalJSON(w, r, &payload); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
+	if err := decodeOptionalJSON(w, r, &payload); err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
 	var assessment models.Assessment
-	if err := h.db.First(&assessment, "id = ?", id).Error; err != nil {
-		writeError(w, http.StatusNotFound, "assessment not found")
-		return
-	}
-
+	if err := h.db.First(&assessment, "id = ?", id).Error; err != nil { writeError(w, http.StatusNotFound, "assessment not found"); return }
 	fromStatus := assessment.Status
 	switch action {
-	case "submit-for-moderation":
-		if assessment.Status != "draft" && assessment.Status != "returned_for_correction" {
-			writeError(w, http.StatusBadRequest, "only draft or returned assessments can be submitted for moderation")
-			return
-		}
-		assessment.Status = "submitted_to_moderator"
-		assessment.ModerationStatus = assessment.Status
-		assessment.SubmittedForReviewAt = nowPtr()
 	case "submit-to-exam-officer":
-		if assessment.Status != "approved_by_moderator" {
-			writeError(w, http.StatusBadRequest, "only moderator-approved assessments can be submitted to exam officer")
-			return
-		}
+		if assessment.Status != "draft" && assessment.Status != "returned_to_lecturer" { writeError(w, http.StatusBadRequest, "not ready for submission"); return }
 		assessment.Status = "submitted_to_exam_officer"
-		assessment.ModerationStatus = assessment.Status
+		assessment.ModerationStatus = "submitted_to_exam_officer"
+		assessment.SubmittedForReviewAt = nowPtr()
 	case "publish":
-		if assessment.Status != "approved_for_exam" {
-			writeError(w, http.StatusBadRequest, "only exam-officer-approved assessments can be published")
-			return
-		}
+		if assessment.Status != "approved_for_exam" { writeError(w, http.StatusBadRequest, "not approved for publishing"); return }
 		assessment.Status = "published"
-		assessment.ModerationStatus = assessment.Status
+		assessment.ModerationStatus = "published"
 	case "close":
 		assessment.Status = "closed"
-		assessment.ModerationStatus = assessment.Status
+		assessment.ModerationStatus = "closed"
 	default:
-		writeError(w, http.StatusNotFound, "unknown action")
-		return
+		writeError(w, http.StatusNotFound, "unknown action"); return
 	}
-
-	if err := h.saveAssessmentWithAction(&assessment, payload.ActorID, action, fromStatus, assessment.Status, firstNonEmpty(payload.Feedback, payload.Comment)); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
+	if err := h.saveAssessmentWithAction(&assessment, payload.ActorID, action, fromStatus, assessment.Status, firstNonEmpty(payload.Feedback, payload.Comment)); err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
 	writeJSON(w, http.StatusOK, assessment)
 }
 
 func splitIDAction(path string, prefix string) (uuid.UUID, string, bool) {
 	trimmed := strings.Trim(strings.TrimPrefix(path, prefix), "/")
 	parts := strings.Split(trimmed, "/")
-	if len(parts) != 2 {
-		return uuid.Nil, "", false
-	}
+	if len(parts) != 2 { return uuid.Nil, "", false }
 	id, err := uuid.Parse(parts[0])
-	if err != nil {
-		return uuid.Nil, "", false
-	}
+	if err != nil { return uuid.Nil, "", false }
 	return id, parts[1], true
 }
 
-func nowPtr() *time.Time {
-	now := time.Now()
-	return &now
-}
+func nowPtr() *time.Time { now := time.Now(); return &now }
