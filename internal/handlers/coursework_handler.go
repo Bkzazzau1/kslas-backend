@@ -87,6 +87,7 @@ func (h *AssessmentHandler) submitCA(w http.ResponseWriter, r *http.Request) {
 	ca.LecturerID = claims.ID
 	if !h.lecturerHasActiveCourseAssignment(claims.ID, ca.CourseID) { writeError(w, http.StatusForbidden, "lecturer is not assigned to this course"); return }
 	if err := h.db.Create(&ca).Error; err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
+	h.notifyStaffRole("exam_officer", h.courseDepartmentID(ca.CourseID), &claims.ID, "CA submitted", "A lecturer submitted CA records to Exam Officer.", "ca", "high", "/exam-officer/ca-submissions", "ca_submission", &ca.ID)
 	writeJSON(w, http.StatusCreated, ca)
 }
 
@@ -108,6 +109,7 @@ func (h *AssessmentHandler) submitMarkedExamScripts(w http.ResponseWriter, r *ht
 	item.LecturerID = claims.ID
 	if !h.lecturerHasActiveCourseAssignment(claims.ID, item.CourseID) { writeError(w, http.StatusForbidden, "lecturer is not assigned to this course"); return }
 	if err := h.db.Create(&item).Error; err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
+	h.notifyStaffRole("exam_officer", h.courseDepartmentID(item.CourseID), &claims.ID, "Marked exam scripts submitted", "A lecturer submitted marked exam scripts to Exam Officer.", "exam_scripts", "high", "/exam-officer/marked-exam-scripts", "marked_exam_script", &item.ID)
 	writeJSON(w, http.StatusCreated, item)
 }
 
