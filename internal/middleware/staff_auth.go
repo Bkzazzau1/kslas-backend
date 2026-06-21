@@ -9,9 +9,9 @@ import (
 	"github.com/google/uuid"
 )
 
-type contextKey string
+type staffContextKeyType string
 
-const staffContextKey contextKey = "staff_claims"
+const staffContextKey staffContextKeyType = "staff_claims"
 
 type StaffClaims struct {
 	ID    uuid.UUID `json:"id"`
