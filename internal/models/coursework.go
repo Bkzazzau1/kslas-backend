@@ -30,18 +30,10 @@ type LecturerAssignment struct {
 }
 
 func (a *LecturerAssignment) BeforeCreate(tx *gorm.DB) error {
-	if a.ID == uuid.Nil {
-		a.ID = uuid.New()
-	}
-	if a.AssignmentType == "" {
-		a.AssignmentType = "assignment"
-	}
-	if a.FeedbackReleasePolicy == "" {
-		a.FeedbackReleasePolicy = "after_marking"
-	}
-	if a.Status == "" {
-		a.Status = "draft"
-	}
+	if a.ID == uuid.Nil { a.ID = uuid.New() }
+	if a.AssignmentType == "" { a.AssignmentType = "assignment" }
+	if a.FeedbackReleasePolicy == "" { a.FeedbackReleasePolicy = "after_marking" }
+	if a.Status == "" { a.Status = "draft" }
 	return nil
 }
 
@@ -65,81 +57,62 @@ type StudentAssignmentSubmission struct {
 }
 
 func (s *StudentAssignmentSubmission) BeforeCreate(tx *gorm.DB) error {
-	if s.ID == uuid.Nil {
-		s.ID = uuid.New()
-	}
-	if s.Status == "" {
-		s.Status = "submitted"
-	}
-	if s.SubmittedAt == nil {
-		now := time.Now()
-		s.SubmittedAt = &now
-	}
+	if s.ID == uuid.Nil { s.ID = uuid.New() }
+	if s.Status == "" { s.Status = "submitted" }
+	if s.SubmittedAt == nil { now := time.Now(); s.SubmittedAt = &now }
 	return nil
 }
 
 type CASubmission struct {
-	ID              uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
-	CourseID        uuid.UUID  `json:"course_id" gorm:"type:uuid;not null;index"`
-	Course          Course     `json:"course" gorm:"foreignKey:CourseID"`
-	LecturerID      uuid.UUID  `json:"lecturer_id" gorm:"type:uuid;not null;index"`
-	ExamOfficerID   *uuid.UUID `json:"exam_officer_id" gorm:"type:uuid;index"`
-	AcademicSession string     `json:"academic_session" gorm:"size:20;index"`
-	Semester        string     `json:"semester" gorm:"size:30"`
-	TotalStudents   int        `json:"total_students" gorm:"default:0"`
-	TotalMarks      float64    `json:"total_marks" gorm:"default:40"`
-	FileURL         string     `json:"file_url"`
-	Summary         string     `json:"summary"`
-	Status          string     `json:"status" gorm:"size:40;default:submitted_to_exam_officer;index"`
-	SubmittedAt     *time.Time `json:"submitted_at"`
-	ReviewedAt      *time.Time `json:"reviewed_at"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID                  uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
+	CourseID            uuid.UUID  `json:"course_id" gorm:"type:uuid;not null;index"`
+	Course              Course     `json:"course" gorm:"foreignKey:CourseID"`
+	LecturerID          uuid.UUID  `json:"lecturer_id" gorm:"type:uuid;not null;index"`
+	ExamOfficerID       *uuid.UUID `json:"exam_officer_id" gorm:"type:uuid;index"`
+	AcademicSession     string     `json:"academic_session" gorm:"size:20;index"`
+	Semester            string     `json:"semester" gorm:"size:30"`
+	TotalStudents       int        `json:"total_students" gorm:"default:0"`
+	TotalMarks          float64    `json:"total_marks" gorm:"default:40"`
+	FileURL             string     `json:"file_url"`
+	Summary             string     `json:"summary"`
+	ExamOfficerFeedback string     `json:"exam_officer_feedback"`
+	Status              string     `json:"status" gorm:"size:40;default:submitted_to_exam_officer;index"`
+	SubmittedAt         *time.Time `json:"submitted_at"`
+	ReviewedAt          *time.Time `json:"reviewed_at"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 func (c *CASubmission) BeforeCreate(tx *gorm.DB) error {
-	if c.ID == uuid.Nil {
-		c.ID = uuid.New()
-	}
-	if c.Status == "" {
-		c.Status = "submitted_to_exam_officer"
-	}
-	if c.SubmittedAt == nil {
-		now := time.Now()
-		c.SubmittedAt = &now
-	}
+	if c.ID == uuid.Nil { c.ID = uuid.New() }
+	if c.Status == "" { c.Status = "submitted_to_exam_officer" }
+	if c.SubmittedAt == nil { now := time.Now(); c.SubmittedAt = &now }
 	return nil
 }
 
 type MarkedExamScriptSubmission struct {
-	ID              uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
-	AssessmentID    uuid.UUID  `json:"assessment_id" gorm:"type:uuid;not null;index"`
-	Assessment      Assessment `json:"assessment" gorm:"foreignKey:AssessmentID"`
-	CourseID        uuid.UUID  `json:"course_id" gorm:"type:uuid;not null;index"`
-	LecturerID      uuid.UUID  `json:"lecturer_id" gorm:"type:uuid;not null;index"`
-	ExamOfficerID   *uuid.UUID `json:"exam_officer_id" gorm:"type:uuid;index"`
-	AcademicSession string     `json:"academic_session" gorm:"size:20;index"`
-	Semester        string     `json:"semester" gorm:"size:30"`
-	MarkedCount     int        `json:"marked_count" gorm:"default:0"`
-	FileURL         string     `json:"file_url"`
-	Summary         string     `json:"summary"`
-	Status          string     `json:"status" gorm:"size:40;default:submitted_to_exam_officer;index"`
-	SubmittedAt     *time.Time `json:"submitted_at"`
-	ReviewedAt      *time.Time `json:"reviewed_at"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID                  uuid.UUID  `json:"id" gorm:"type:uuid;primaryKey"`
+	AssessmentID        uuid.UUID  `json:"assessment_id" gorm:"type:uuid;not null;index"`
+	Assessment          Assessment `json:"assessment" gorm:"foreignKey:AssessmentID"`
+	CourseID            uuid.UUID  `json:"course_id" gorm:"type:uuid;not null;index"`
+	LecturerID          uuid.UUID  `json:"lecturer_id" gorm:"type:uuid;not null;index"`
+	ExamOfficerID       *uuid.UUID `json:"exam_officer_id" gorm:"type:uuid;index"`
+	AcademicSession     string     `json:"academic_session" gorm:"size:20;index"`
+	Semester            string     `json:"semester" gorm:"size:30"`
+	MarkedCount         int        `json:"marked_count" gorm:"default:0"`
+	FileURL             string     `json:"file_url"`
+	Summary             string     `json:"summary"`
+	ExamOfficerFeedback string     `json:"exam_officer_feedback"`
+	Status              string     `json:"status" gorm:"size:40;default:submitted_to_exam_officer;index"`
+	SubmittedAt         *time.Time `json:"submitted_at"`
+	ReviewedAt          *time.Time `json:"reviewed_at"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 func (s *MarkedExamScriptSubmission) BeforeCreate(tx *gorm.DB) error {
-	if s.ID == uuid.Nil {
-		s.ID = uuid.New()
-	}
-	if s.Status == "" {
-		s.Status = "submitted_to_exam_officer"
-	}
-	if s.SubmittedAt == nil {
-		now := time.Now()
-		s.SubmittedAt = &now
-	}
+	if s.ID == uuid.Nil { s.ID = uuid.New() }
+	if s.Status == "" { s.Status = "submitted_to_exam_officer" }
+	if s.SubmittedAt == nil { now := time.Now(); s.SubmittedAt = &now }
 	return nil
 }
