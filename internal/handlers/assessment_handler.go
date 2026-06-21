@@ -43,11 +43,13 @@ func (h *AssessmentHandler) health(w http.ResponseWriter, r *http.Request) { wri
 
 func (h *AssessmentHandler) listAssessments(w http.ResponseWriter, r *http.Request) {
 	query := h.db.Preload("Course").Preload("Questions.Options").Preload("Questions.Assets").Order("updated_at desc")
-	if lecturerID := r.URL.Query().Get("lecturer_id"); lecturerID != "" { query = query.Where("created_by_id = ?", lecturerID) }
+	lecturerView := false
+	if lecturerID := r.URL.Query().Get("lecturer_id"); lecturerID != "" { lecturerView = true; query = query.Where("created_by_id = ?", lecturerID) }
 	if courseID := r.URL.Query().Get("course_id"); courseID != "" { query = query.Where("course_id = ?", courseID) }
 	if status := r.URL.Query().Get("status"); status != "" { query = query.Where("status = ?", status) }
 	var assessments []models.Assessment
 	if err := query.Find(&assessments).Error; err != nil { writeError(w, http.StatusInternalServerError, err.Error()); return }
+	if lecturerView { writeJSON(w, http.StatusOK, toLecturerAssessmentViews(assessments)); return }
 	writeJSON(w, http.StatusOK, assessments)
 }
 
