@@ -7,6 +7,7 @@ import (
 
 	"kslasbackend/internal/database"
 	"kslasbackend/internal/handlers"
+	"kslasbackend/internal/middleware"
 	"kslasbackend/internal/models"
 )
 
@@ -39,7 +40,7 @@ func main() {
 	}
 
 	log.Printf("K-SLAS backend running on :%s", port)
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
+	if err := http.ListenAndServe(":"+port, middleware.CORS(mux)); err != nil {
 		log.Fatal(err)
 	}
 }
