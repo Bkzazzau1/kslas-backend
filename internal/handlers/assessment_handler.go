@@ -25,6 +25,7 @@ func (h *AssessmentHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/admin/staff", h.createStaff)
 	mux.HandleFunc("GET /api/admin/staff-roles", h.listStaffRoles)
 	mux.HandleFunc("POST /api/admin/staff-roles", h.createStaffRole)
+	mux.HandleFunc("GET /api/lecturer/analytics/overview", h.lecturerAnalyticsOverview)
 	mux.HandleFunc("GET /api/lecturer/assessments", h.listAssessments)
 	mux.HandleFunc("POST /api/lecturer/assessments", h.createAssessment)
 	mux.HandleFunc("POST /api/lecturer/assessments/", h.assessmentAction)
