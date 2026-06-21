@@ -21,7 +21,7 @@ func (h *AssessmentHandler) listQuestions(w http.ResponseWriter, r *http.Request
 
 func (h *AssessmentHandler) createQuestion(w http.ResponseWriter, r *http.Request) {
 	var question models.Question
-	if err := decodeJSON(r, &question); err != nil {
+	if err := decodeJSON(w, r, &question); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -41,7 +41,7 @@ func (h *AssessmentHandler) createQuestion(w http.ResponseWriter, r *http.Reques
 
 func (h *AssessmentHandler) createOption(w http.ResponseWriter, r *http.Request) {
 	var option models.QuestionOption
-	if err := decodeJSON(r, &option); err != nil {
+	if err := decodeJSON(w, r, &option); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -54,7 +54,7 @@ func (h *AssessmentHandler) createOption(w http.ResponseWriter, r *http.Request)
 
 func (h *AssessmentHandler) createAsset(w http.ResponseWriter, r *http.Request) {
 	var asset models.QuestionAsset
-	if err := decodeJSON(r, &asset); err != nil {
+	if err := decodeJSON(w, r, &asset); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
