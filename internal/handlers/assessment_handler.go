@@ -30,6 +30,14 @@ func (h *AssessmentHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/lecturer/assets", h.createAsset)
 	mux.HandleFunc("GET /api/lecturer/submissions", h.listSubmissions)
 	mux.HandleFunc("PATCH /api/lecturer/answers/", h.markAnswer)
+	mux.HandleFunc("GET /api/lecturer/course-assignments", h.listLecturerCourseAssignments)
+	mux.HandleFunc("GET /api/lecturer/courses", h.listAssignedCoursesForLecturer)
+	mux.HandleFunc("GET /api/admin/lecturer-course-assignments", h.listLecturerCourseAssignments)
+	mux.HandleFunc("POST /api/admin/lecturer-course-assignments", h.createLecturerCourseAssignment)
+	mux.HandleFunc("GET /api/moderator/assessments", h.listModeratorAssessments)
+	mux.HandleFunc("POST /api/moderator/assessments/", h.moderatorAssessmentAction)
+	mux.HandleFunc("GET /api/exam-officer/assessments", h.listExamOfficerAssessments)
+	mux.HandleFunc("POST /api/exam-officer/assessments/", h.examOfficerAssessmentAction)
 	mux.HandleFunc("GET /api/student/assessments", h.listPublishedAssessments)
 	mux.HandleFunc("POST /api/student/assessments/", h.studentAssessmentAction)
 	mux.HandleFunc("POST /api/student/answers", h.submitAnswer)
@@ -40,8 +48,19 @@ func (h *AssessmentHandler) health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AssessmentHandler) listAssessments(w http.ResponseWriter, r *http.Request) {
+	query := h.db.Preload("Course").Preload("Questions.Options").Preload("Questions.Assets").Order("updated_at desc")
+	if lecturerID := r.URL.Query().Get("lecturer_id"); lecturerID != "" {
+		query = query.Where("created_by_id = ?", lecturerID)
+	}
+	if courseID := r.URL.Query().Get("course_id"); courseID != "" {
+		query = query.Where("course_id = ?", courseID)
+	}
+	if status := r.URL.Query().Get("status"); status != "" {
+		query = query.Where("status = ?", status)
+	}
+
 	var assessments []models.Assessment
-	if err := h.db.Preload("Course").Preload("Questions.Options").Preload("Questions.Assets").Find(&assessments).Error; err != nil {
+	if err := query.Find(&assessments).Error; err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -52,6 +71,10 @@ func (h *AssessmentHandler) createAssessment(w http.ResponseWriter, r *http.Requ
 	var assessment models.Assessment
 	if err := decodeJSON(w, r, &assessment); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if assessment.CreatedByID != nil && !h.lecturerHasActiveCourseAssignment(*assessment.CreatedByID, assessment.CourseID) {
+		writeError(w, http.StatusForbidden, "lecturer is not assigned to this course")
 		return
 	}
 	if err := h.db.Create(&assessment).Error; err != nil {
@@ -67,21 +90,52 @@ func (h *AssessmentHandler) assessmentAction(w http.ResponseWriter, r *http.Requ
 		writeError(w, http.StatusNotFound, "invalid assessment action")
 		return
 	}
+
+	var payload moderationPayload
+	if err := decodeOptionalJSON(w, r, &payload); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	var assessment models.Assessment
 	if err := h.db.First(&assessment, "id = ?", id).Error; err != nil {
 		writeError(w, http.StatusNotFound, "assessment not found")
 		return
 	}
+
+	fromStatus := assessment.Status
 	switch action {
+	case "submit-for-moderation":
+		if assessment.Status != "draft" && assessment.Status != "returned_for_correction" {
+			writeError(w, http.StatusBadRequest, "only draft or returned assessments can be submitted for moderation")
+			return
+		}
+		assessment.Status = "submitted_to_moderator"
+		assessment.ModerationStatus = assessment.Status
+		assessment.SubmittedForReviewAt = nowPtr()
+	case "submit-to-exam-officer":
+		if assessment.Status != "approved_by_moderator" {
+			writeError(w, http.StatusBadRequest, "only moderator-approved assessments can be submitted to exam officer")
+			return
+		}
+		assessment.Status = "submitted_to_exam_officer"
+		assessment.ModerationStatus = assessment.Status
 	case "publish":
+		if assessment.Status != "approved_for_exam" {
+			writeError(w, http.StatusBadRequest, "only exam-officer-approved assessments can be published")
+			return
+		}
 		assessment.Status = "published"
+		assessment.ModerationStatus = assessment.Status
 	case "close":
 		assessment.Status = "closed"
+		assessment.ModerationStatus = assessment.Status
 	default:
 		writeError(w, http.StatusNotFound, "unknown action")
 		return
 	}
-	if err := h.db.Save(&assessment).Error; err != nil {
+
+	if err := h.saveAssessmentWithAction(&assessment, payload.ActorID, action, fromStatus, assessment.Status, firstNonEmpty(payload.Feedback, payload.Comment)); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
