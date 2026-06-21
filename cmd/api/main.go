@@ -34,6 +34,7 @@ func main() {
 		&models.StudentAssignmentSubmission{},
 		&models.CASubmission{},
 		&models.MarkedExamScriptSubmission{},
+		&models.Notification{},
 	); err != nil {
 		log.Fatalf("database migration failed: %v", err)
 	}
