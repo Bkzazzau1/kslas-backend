@@ -29,6 +29,8 @@ type Assessment struct {
 	ExamOfficerID         *uuid.UUID     `json:"exam_officer_id" gorm:"type:uuid;index"`
 	ExamOfficerFeedback   string         `json:"exam_officer_feedback"`
 	ExamOfficerApprovedAt *time.Time     `json:"exam_officer_approved_at"`
+	FeedbackEnabled       bool           `json:"feedback_enabled" gorm:"default:true"`
+	FeedbackReleasePolicy string         `json:"feedback_release_policy" gorm:"size:40;default:after_marking"`
 	ProctoringLevel       string         `json:"proctoring_level" gorm:"size:20;default:none"`
 	AllowMobile           bool           `json:"allow_mobile" gorm:"default:true"`
 	ShuffleQuestions      bool           `json:"shuffle_questions" gorm:"default:false"`
@@ -52,6 +54,9 @@ func (a *Assessment) BeforeCreate(tx *gorm.DB) error {
 	}
 	if a.AssessmentType == "" {
 		a.AssessmentType = "graded_assessment"
+	}
+	if a.FeedbackReleasePolicy == "" {
+		a.FeedbackReleasePolicy = "after_marking"
 	}
 	if a.ProctoringLevel == "" {
 		a.ProctoringLevel = "none"
