@@ -1,59 +1,85 @@
 package handlers
 
 import (
-	"errors"
-	"log"
 	"net/http"
+	"strings"
 
-	"kslasbackend/internal/dto"
+	"golang.org/x/crypto/bcrypt"
+
 	"kslasbackend/internal/middleware"
-	"kslasbackend/internal/services"
+	"kslasbackend/internal/models"
 )
 
-type AuthHandler struct {
-	authService *services.AuthService
+type staffLoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
-func NewAuthHandler(authService *services.AuthService) *AuthHandler {
-	return &AuthHandler{authService: authService}
+type staffLoginResponse struct {
+	Token string       `json:"token"`
+	Staff models.Staff `json:"staff"`
+	Roles []string     `json:"roles"`
 }
 
-func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req dto.LoginRequest
-	if err := decodeJSON(w, r, &req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request payload")
+func (h *AssessmentHandler) staffLogin(w http.ResponseWriter, r *http.Request) {
+	var payload staffLoginRequest
+	if err := decodeJSON(w, r, &payload); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	payload.Email = strings.TrimSpace(strings.ToLower(payload.Email))
+	if payload.Email == "" || payload.Password == "" {
+		writeError(w, http.StatusBadRequest, "email and password are required")
 		return
 	}
 
-	response, err := h.authService.Login(r.Context(), req.Identity, req.Password)
+	var staff models.Staff
+	if err := h.db.Preload("Department").Where("LOWER(email) = ?", payload.Email).First(&staff).Error; err != nil {
+		writeError(w, http.StatusUnauthorized, "invalid login details")
+		return
+	}
+	if !staff.IsActive {
+		writeError(w, http.StatusForbidden, "staff account is not active")
+		return
+	}
+	if staff.PasswordHash == "" || bcrypt.CompareHashAndPassword([]byte(staff.PasswordHash), []byte(payload.Password)) != nil {
+		writeError(w, http.StatusUnauthorized, "invalid login details")
+		return
+	}
+
+	roles := h.staffRoleNames(staff)
+	token, err := middleware.NewStaffToken(staff.ID, staff.PrimaryRole, roles)
 	if err != nil {
-		switch {
-		case errors.Is(err, services.ErrInvalidCredentials), errors.Is(err, services.ErrInactiveAccount):
-			writeError(w, http.StatusUnauthorized, "invalid credentials")
-		default:
-			log.Printf("login failed internal error: %v", err)
-			writeError(w, http.StatusInternalServerError, "login failed")
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	now := nowPtr()
+	h.db.Model(&staff).Update("last_login_at", now)
+	staff.LastLoginAt = now
+
+	writeJSON(w, http.StatusOK, staffLoginResponse{Token: token, Staff: staff, Roles: roles})
+}
+
+func (h *AssessmentHandler) staffRoleNames(staff models.Staff) []string {
+	roles := []string{}
+	if staff.PrimaryRole != "" {
+		roles = append(roles, staff.PrimaryRole)
+	}
+	var assignments []models.StaffRoleAssignment
+	if err := h.db.Where("staff_id = ? AND is_active = ?", staff.ID, true).Find(&assignments).Error; err == nil {
+		for _, assignment := range assignments {
+			if assignment.Role != "" {
+				roles = append(roles, assignment.Role)
+			}
 		}
-		return
 	}
-
-	writeJSON(w, http.StatusOK, response)
-}
-
-func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.UserIDFromContext(r.Context())
-	if !ok {
-		writeError(w, http.StatusUnauthorized, "unauthenticated user")
-		return
+	seen := map[string]bool{}
+	unique := []string{}
+	for _, role := range roles {
+		if !seen[role] {
+			seen[role] = true
+			unique = append(unique, role)
+		}
 	}
-
-	user, err := h.authService.CurrentUser(r.Context(), userID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to fetch current user")
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"user": user,
-	})
+	return unique
 }
