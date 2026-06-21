@@ -20,6 +20,8 @@ func main() {
 	if err := db.AutoMigrate(
 		&models.Department{},
 		&models.Course{},
+		&models.Staff{},
+		&models.StaffRoleAssignment{},
 		&models.LecturerCourseAssignment{},
 		&models.Assessment{},
 		&models.AssessmentModerationAction{},
@@ -28,6 +30,10 @@ func main() {
 		&models.QuestionAsset{},
 		&models.StudentSubmission{},
 		&models.StudentAnswer{},
+		&models.LecturerAssignment{},
+		&models.StudentAssignmentSubmission{},
+		&models.CASubmission{},
+		&models.MarkedExamScriptSubmission{},
 	); err != nil {
 		log.Fatalf("database migration failed: %v", err)
 	}
