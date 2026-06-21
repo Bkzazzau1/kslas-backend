@@ -113,6 +113,7 @@ func (h *AssessmentHandler) assessmentAction(w http.ResponseWriter, r *http.Requ
 		writeError(w, http.StatusNotFound, "unknown action"); return
 	}
 	if err := h.saveAssessmentWithAction(&assessment, payload.ActorID, action, fromStatus, assessment.Status, firstNonEmpty(payload.Feedback, payload.Comment)); err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
+	if action == "submit-to-exam-officer" { h.notifyStaffRole("exam_officer", h.courseDepartmentID(assessment.CourseID), assessment.CreatedByID, "Questions submitted", "A lecturer submitted questions to Exam Officer for review.", "exam_moderation", "high", "/exam-officer/assessments", "assessment", &assessment.ID) }
 	writeJSON(w, http.StatusOK, toLecturerAssessmentViews([]models.Assessment{assessment})[0])
 }
 
