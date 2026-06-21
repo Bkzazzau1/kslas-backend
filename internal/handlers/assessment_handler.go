@@ -50,7 +50,7 @@ func (h *AssessmentHandler) listAssessments(w http.ResponseWriter, r *http.Reque
 
 func (h *AssessmentHandler) createAssessment(w http.ResponseWriter, r *http.Request) {
 	var assessment models.Assessment
-	if err := decodeJSON(r, &assessment); err != nil {
+	if err := decodeJSON(w, r, &assessment); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
