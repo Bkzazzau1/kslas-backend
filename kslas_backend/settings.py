@@ -17,7 +17,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "apps.academics",
-    "apps.assessments",
+    "apps.exams",
 ]
 
 MIDDLEWARE = [
@@ -49,7 +49,7 @@ TEMPLATES = [
     }
 ]
 
-WSGI_APPLICATION = "kslas_backend.wsgi.application"
+WSGI_APPLICATION = "kslas_backend.asgi.app"
 ASGI_APPLICATION = "kslas_backend.asgi.application"
 
 DATABASES = {
