@@ -30,10 +30,72 @@ Supported answer tools:
 - Whiteboard/sketch image URL
 - Whiteboard JSON stroke data
 
+## Lecturer course assignment
+
+Lecturer assessment creation is now linked to course assignment. If `created_by_id` is sent when creating an assessment, the lecturer must have an active assignment for the selected course.
+
+Assignment endpoints:
+
+- `GET /api/admin/lecturer-course-assignments`
+- `POST /api/admin/lecturer-course-assignments`
+- `GET /api/lecturer/course-assignments?lecturer_id={id}`
+- `GET /api/lecturer/courses?lecturer_id={id}`
+
+Example assignment payload:
+
+```json
+{
+  "lecturer_id": "00000000-0000-0000-0000-000000000000",
+  "course_id": "00000000-0000-0000-0000-000000000000",
+  "academic_session": "2025/2026",
+  "semester": "first",
+  "level": "200",
+  "teaching_hours_per_week": 4,
+  "assigned_by_id": "00000000-0000-0000-0000-000000000000"
+}
+```
+
+## Exam moderation workflow
+
+Assessments now follow this moderation path:
+
+```txt
+draft
+submitted_to_moderator
+approved_by_moderator
+submitted_to_exam_officer
+approved_for_exam
+published
+closed
+```
+
+Returned questions move to:
+
+```txt
+returned_for_correction
+```
+
+Moderation endpoints:
+
+- `POST /api/lecturer/assessments/{id}/submit-for-moderation`
+- `GET /api/moderator/assessments`
+- `POST /api/moderator/assessments/{id}/approve`
+- `POST /api/moderator/assessments/{id}/return`
+- `POST /api/lecturer/assessments/{id}/submit-to-exam-officer`
+- `GET /api/exam-officer/assessments`
+- `POST /api/exam-officer/assessments/{id}/approve`
+- `POST /api/exam-officer/assessments/{id}/return`
+- `POST /api/lecturer/assessments/{id}/publish`
+- `POST /api/lecturer/assessments/{id}/close`
+
+Each moderation action is saved in `assessment_moderation_actions` for audit trail.
+
 ## Main endpoints
 
 - `GET /api/lecturer/assessments`
 - `POST /api/lecturer/assessments`
+- `POST /api/lecturer/assessments/{id}/submit-for-moderation`
+- `POST /api/lecturer/assessments/{id}/submit-to-exam-officer`
 - `POST /api/lecturer/assessments/{id}/publish`
 - `POST /api/lecturer/assessments/{id}/close`
 - `GET /api/lecturer/questions?assessment_id={id}`
