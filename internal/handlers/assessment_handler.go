@@ -43,14 +43,12 @@ func (h *AssessmentHandler) health(w http.ResponseWriter, r *http.Request) { wri
 
 func (h *AssessmentHandler) listAssessments(w http.ResponseWriter, r *http.Request) {
 	query := h.db.Preload("Course").Preload("Questions.Options").Preload("Questions.Assets").Order("updated_at desc")
-	lecturerView := false
-	if lecturerID := r.URL.Query().Get("lecturer_id"); lecturerID != "" { lecturerView = true; query = query.Where("created_by_id = ?", lecturerID) }
+	if lecturerID := r.URL.Query().Get("lecturer_id"); lecturerID != "" { query = query.Where("created_by_id = ?", lecturerID) }
 	if courseID := r.URL.Query().Get("course_id"); courseID != "" { query = query.Where("course_id = ?", courseID) }
 	if status := r.URL.Query().Get("status"); status != "" { query = query.Where("status = ?", status) }
 	var assessments []models.Assessment
 	if err := query.Find(&assessments).Error; err != nil { writeError(w, http.StatusInternalServerError, err.Error()); return }
-	if lecturerView { writeJSON(w, http.StatusOK, toLecturerAssessmentViews(assessments)); return }
-	writeJSON(w, http.StatusOK, assessments)
+	writeJSON(w, http.StatusOK, toLecturerAssessmentViews(assessments))
 }
 
 func (h *AssessmentHandler) createAssessment(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +56,7 @@ func (h *AssessmentHandler) createAssessment(w http.ResponseWriter, r *http.Requ
 	if err := decodeJSON(w, r, &assessment); err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
 	if assessment.CreatedByID != nil && !h.lecturerHasActiveCourseAssignment(*assessment.CreatedByID, assessment.CourseID) { writeError(w, http.StatusForbidden, "not assigned to this course"); return }
 	if err := h.db.Create(&assessment).Error; err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
-	writeJSON(w, http.StatusCreated, assessment)
+	writeJSON(w, http.StatusCreated, toLecturerAssessmentViews([]models.Assessment{assessment})[0])
 }
 
 func (h *AssessmentHandler) assessmentAction(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +84,7 @@ func (h *AssessmentHandler) assessmentAction(w http.ResponseWriter, r *http.Requ
 		writeError(w, http.StatusNotFound, "unknown action"); return
 	}
 	if err := h.saveAssessmentWithAction(&assessment, payload.ActorID, action, fromStatus, assessment.Status, firstNonEmpty(payload.Feedback, payload.Comment)); err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
-	writeJSON(w, http.StatusOK, assessment)
+	writeJSON(w, http.StatusOK, toLecturerAssessmentViews([]models.Assessment{assessment})[0])
 }
 
 func splitIDAction(path string, prefix string) (uuid.UUID, string, bool) {
