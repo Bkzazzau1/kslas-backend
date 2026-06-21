@@ -11,81 +11,43 @@ import (
 )
 
 func (h *AssessmentHandler) reviewCASubmission(w http.ResponseWriter, r *http.Request) {
-	if !h.requireAnyRole(w, r, "exam_officer") {
-		return
-	}
+	if !h.requireAnyRole(w, r, "exam_officer") { return }
 	idText := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/exam-officer/ca-submissions/"), "/")
 	idText = strings.TrimSuffix(idText, "/review")
 	idText = strings.Trim(idText, "/")
 	id, err := uuid.Parse(idText)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid CA submission id")
-		return
-	}
-	var payload struct {
-		Status   string `json:"status"`
-		Feedback string `json:"feedback"`
-	}
-	if err := decodeJSON(w, r, &payload); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if payload.Status == "" {
-		payload.Status = "accepted"
-	}
-	claims, _ := middleware.StaffClaimsFromHeaders(r)
+	if err != nil { writeError(w, http.StatusBadRequest, "invalid CA submission id"); return }
+	var payload struct { Status string `json:"status"`; Feedback string `json:"feedback"` }
+	if err := decodeJSON(w, r, &payload); err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
+	if payload.Status == "" { payload.Status = "accepted" }
+	claims, _ := middleware.StaffClaimsFromRequest(r)
 	var item models.CASubmission
-	if err := h.db.First(&item, "id = ?", id).Error; err != nil {
-		writeError(w, http.StatusNotFound, "CA submission not found")
-		return
-	}
+	if err := h.db.First(&item, "id = ?", id).Error; err != nil { writeError(w, http.StatusNotFound, "CA submission not found"); return }
 	item.Status = payload.Status
 	item.ExamOfficerID = &claims.ID
 	item.ExamOfficerFeedback = payload.Feedback
 	item.ReviewedAt = nowPtr()
-	if err := h.db.Save(&item).Error; err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
+	if err := h.db.Save(&item).Error; err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
 	writeJSON(w, http.StatusOK, item)
 }
 
 func (h *AssessmentHandler) reviewMarkedExamScripts(w http.ResponseWriter, r *http.Request) {
-	if !h.requireAnyRole(w, r, "exam_officer") {
-		return
-	}
+	if !h.requireAnyRole(w, r, "exam_officer") { return }
 	idText := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/exam-officer/marked-exam-scripts/"), "/")
 	idText = strings.TrimSuffix(idText, "/review")
 	idText = strings.Trim(idText, "/")
 	id, err := uuid.Parse(idText)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid marked script submission id")
-		return
-	}
-	var payload struct {
-		Status   string `json:"status"`
-		Feedback string `json:"feedback"`
-	}
-	if err := decodeJSON(w, r, &payload); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if payload.Status == "" {
-		payload.Status = "accepted"
-	}
-	claims, _ := middleware.StaffClaimsFromHeaders(r)
+	if err != nil { writeError(w, http.StatusBadRequest, "invalid marked script submission id"); return }
+	var payload struct { Status string `json:"status"`; Feedback string `json:"feedback"` }
+	if err := decodeJSON(w, r, &payload); err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
+	if payload.Status == "" { payload.Status = "accepted" }
+	claims, _ := middleware.StaffClaimsFromRequest(r)
 	var item models.MarkedExamScriptSubmission
-	if err := h.db.First(&item, "id = ?", id).Error; err != nil {
-		writeError(w, http.StatusNotFound, "marked exam script submission not found")
-		return
-	}
+	if err := h.db.First(&item, "id = ?", id).Error; err != nil { writeError(w, http.StatusNotFound, "marked exam script submission not found"); return }
 	item.Status = payload.Status
 	item.ExamOfficerID = &claims.ID
 	item.ExamOfficerFeedback = payload.Feedback
 	item.ReviewedAt = nowPtr()
-	if err := h.db.Save(&item).Error; err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
+	if err := h.db.Save(&item).Error; err != nil { writeError(w, http.StatusBadRequest, err.Error()); return }
 	writeJSON(w, http.StatusOK, item)
 }
