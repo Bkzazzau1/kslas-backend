@@ -20,7 +20,9 @@ func main() {
 	if err := db.AutoMigrate(
 		&models.Department{},
 		&models.Course{},
+		&models.LecturerCourseAssignment{},
 		&models.Assessment{},
+		&models.AssessmentModerationAction{},
 		&models.Question{},
 		&models.QuestionOption{},
 		&models.QuestionAsset{},
