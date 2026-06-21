@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 
 	"kslasbackend/internal/models"
 )
@@ -159,24 +160,20 @@ func (h *AssessmentHandler) examOfficerAssessmentAction(w http.ResponseWriter, r
 }
 
 func (h *AssessmentHandler) saveAssessmentWithAction(assessment *models.Assessment, actorID *uuid.UUID, action string, fromStatus string, toStatus string, comment string) error {
-	return h.db.Transaction(func(tx interface{ Error() error }) error {
-		return nil
+	return h.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(assessment).Error; err != nil {
+			return err
+		}
+		moderationAction := models.AssessmentModerationAction{
+			AssessmentID: assessment.ID,
+			ActorID:      actorID,
+			Action:       action,
+			FromStatus:   fromStatus,
+			ToStatus:     toStatus,
+			Comment:      comment,
+		}
+		return tx.Create(&moderationAction).Error
 	})
-}
-
-func (h *AssessmentHandler) saveAssessmentAction(assessment *models.Assessment, actorID *uuid.UUID, action string, fromStatus string, toStatus string, comment string) error {
-	if err := h.db.Save(assessment).Error; err != nil {
-		return err
-	}
-	moderationAction := models.AssessmentModerationAction{
-		AssessmentID: assessment.ID,
-		ActorID:      actorID,
-		Action:       action,
-		FromStatus:   fromStatus,
-		ToStatus:     toStatus,
-		Comment:      comment,
-	}
-	return h.db.Create(&moderationAction).Error
 }
 
 func firstNonEmpty(values ...string) string {
