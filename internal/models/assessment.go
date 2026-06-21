@@ -19,8 +19,16 @@ type Assessment struct {
 	TotalMarks            float64        `json:"total_marks" gorm:"default:0"`
 	StartTime             *time.Time     `json:"start_time"`
 	EndTime               *time.Time     `json:"end_time"`
-	CreatedByID           *uuid.UUID     `json:"created_by_id" gorm:"type:uuid"`
-	Status                string         `json:"status" gorm:"size:30;default:draft"`
+	CreatedByID           *uuid.UUID     `json:"created_by_id" gorm:"type:uuid;index"`
+	Status                string         `json:"status" gorm:"size:60;default:draft;index"`
+	ModerationStatus      string         `json:"moderation_status" gorm:"size:60;default:draft;index"`
+	ModeratorID           *uuid.UUID     `json:"moderator_id" gorm:"type:uuid;index"`
+	ModerationFeedback    string         `json:"moderation_feedback"`
+	SubmittedForReviewAt  *time.Time     `json:"submitted_for_review_at"`
+	ModeratedAt           *time.Time     `json:"moderated_at"`
+	ExamOfficerID         *uuid.UUID     `json:"exam_officer_id" gorm:"type:uuid;index"`
+	ExamOfficerFeedback   string         `json:"exam_officer_feedback"`
+	ExamOfficerApprovedAt *time.Time     `json:"exam_officer_approved_at"`
 	ProctoringLevel       string         `json:"proctoring_level" gorm:"size:20;default:none"`
 	AllowMobile           bool           `json:"allow_mobile" gorm:"default:true"`
 	ShuffleQuestions      bool           `json:"shuffle_questions" gorm:"default:false"`
@@ -38,6 +46,9 @@ func (a *Assessment) BeforeCreate(tx *gorm.DB) error {
 	}
 	if a.Status == "" {
 		a.Status = "draft"
+	}
+	if a.ModerationStatus == "" {
+		a.ModerationStatus = a.Status
 	}
 	if a.AssessmentType == "" {
 		a.AssessmentType = "graded_assessment"
