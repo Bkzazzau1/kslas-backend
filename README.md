@@ -53,6 +53,7 @@ Set your Postgres connection string first:
 
 ```bash
 export DATABASE_DSN="host=localhost user=postgres password=postgres dbname=kslas port=5432 sslmode=disable"
+export ALLOWED_ORIGINS="https://YOUR-ADMIN-UI-DOMAIN"
 go mod tidy
 go run ./cmd/api
 ```
@@ -61,8 +62,19 @@ On Windows PowerShell:
 
 ```powershell
 $env:DATABASE_DSN="host=localhost user=postgres password=postgres dbname=kslas port=5432 sslmode=disable"
+$env:ALLOWED_ORIGINS="https://YOUR-ADMIN-UI-DOMAIN"
 go mod tidy
 go run ./cmd/api
 ```
 
 The server starts on port `8080` unless `PORT` is set.
+
+## VPS note
+
+When the admin UI and backend are on different domains or ports, set `ALLOWED_ORIGINS` to the admin UI origin. For multiple origins, separate them with commas:
+
+```bash
+export ALLOWED_ORIGINS="https://admin.example.com,https://www.admin.example.com"
+```
+
+If Nginx serves the admin UI and proxies `/api` to the Go backend from the same origin, the Flutter app can use the same origin automatically.
