@@ -20,6 +20,8 @@ func (h *AssessmentHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/auth/staff/login", h.staffLogin)
 	mux.HandleFunc("POST /api/uploads", h.uploadFile)
 	mux.Handle("GET /uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir(uploadRoot()))))
+	mux.HandleFunc("GET /api/departments", h.listDepartments)
+	mux.HandleFunc("GET /api/courses", h.listCourses)
 	mux.HandleFunc("GET /api/notifications", h.listNotifications)
 	mux.HandleFunc("POST /api/notifications", h.createNotificationAPI)
 	mux.HandleFunc("GET /api/notifications/unread-count", h.notificationUnreadCount)
