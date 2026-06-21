@@ -39,6 +39,7 @@ type StudentAnswer struct {
 	ID                 uuid.UUID      `json:"id" gorm:"type:uuid;primaryKey"`
 	SubmissionID       uuid.UUID      `json:"submission_id" gorm:"type:uuid;not null;index:idx_answer_unique,unique"`
 	QuestionID         uuid.UUID      `json:"question_id" gorm:"type:uuid;not null;index:idx_answer_unique,unique"`
+	Question           Question       `json:"question,omitempty" gorm:"foreignKey:QuestionID"`
 	SelectedOptionID   *uuid.UUID     `json:"selected_option_id" gorm:"type:uuid"`
 	SelectedOptionIDs  datatypes.JSON `json:"selected_option_ids"`
 	TextAnswer         string         `json:"text_answer"`
