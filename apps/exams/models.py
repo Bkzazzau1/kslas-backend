@@ -46,3 +46,4 @@ class Assessment(models.Model):
 
 
 from .question_models import Question, QuestionOption  # noqa: E402,F401
+from .submission_models import QuestionAsset, StudentAnswer, StudentSubmission  # noqa: E402,F401
