@@ -70,7 +70,7 @@ func (h *AssessmentHandler) studentAssessmentAction(w http.ResponseWriter, r *ht
 
 func (h *AssessmentHandler) submitAnswer(w http.ResponseWriter, r *http.Request) {
 	var answer models.StudentAnswer
-	if err := decodeJSON(r, &answer); err != nil {
+	if err := decodeJSON(w, r, &answer); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -93,11 +93,11 @@ func (h *AssessmentHandler) markAnswer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		ManualScore      float64 `json:"manual_score"`
-		LecturerFeedback string  `json:"lecturer_feedback"`
+		ManualScore      float64    `json:"manual_score"`
+		LecturerFeedback string     `json:"lecturer_feedback"`
 		MarkedByID       *uuid.UUID `json:"marked_by_id"`
 	}
-	if err := decodeJSON(r, &payload); err != nil {
+	if err := decodeJSON(w, r, &payload); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
