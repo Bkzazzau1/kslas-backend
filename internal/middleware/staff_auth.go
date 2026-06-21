@@ -24,12 +24,11 @@ func RequireRoles(allowedRoles ...string) func(http.Handler) http.Handler {
 	for _, role := range allowedRoles {
 		allowed[strings.TrimSpace(role)] = true
 	}
-
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			claims, ok := StaffClaimsFromHeaders(r)
+			claims, ok := StaffClaimsFromRequest(r)
 			if !ok {
-				writeMiddlewareError(w, http.StatusUnauthorized, "staff authentication headers are required")
+				writeMiddlewareError(w, http.StatusUnauthorized, "staff authentication is required")
 				return
 			}
 			if len(allowed) > 0 && !claims.HasAnyRole(allowed) {
@@ -42,6 +41,13 @@ func RequireRoles(allowedRoles ...string) func(http.Handler) http.Handler {
 	}
 }
 
+func StaffClaimsFromRequest(r *http.Request) (StaffClaims, bool) {
+	if claims, ok := StaffClaimsFromBearerToken(r.Header.Get("Authorization")); ok {
+		return claims, true
+	}
+	return StaffClaimsFromHeaders(r)
+}
+
 func StaffClaimsFromHeaders(r *http.Request) (StaffClaims, bool) {
 	idText := strings.TrimSpace(r.Header.Get("X-Staff-ID"))
 	if idText == "" {
@@ -51,7 +57,6 @@ func StaffClaimsFromHeaders(r *http.Request) (StaffClaims, bool) {
 	if err != nil {
 		return StaffClaims{}, false
 	}
-
 	role := strings.TrimSpace(r.Header.Get("X-Staff-Role"))
 	roles := parseRoles(r.Header.Get("X-Staff-Roles"))
 	if role != "" {
@@ -60,7 +65,6 @@ func StaffClaimsFromHeaders(r *http.Request) (StaffClaims, bool) {
 	if len(roles) == 0 {
 		return StaffClaims{}, false
 	}
-
 	return StaffClaims{ID: id, Role: role, Roles: uniqueRoles(roles)}, true
 }
 
