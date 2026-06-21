@@ -4,10 +4,16 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 
 	"kslasbackend/internal/middleware"
 	"kslasbackend/internal/models"
 )
+
+type createStaffPayload struct {
+	models.Staff
+	Password string `json:"password"`
+}
 
 func (h *AssessmentHandler) listStaff(w http.ResponseWriter, r *http.Request) {
 	if !h.requireAnyRole(w, r, "admin", "dlc_director", "hod") {
@@ -32,10 +38,19 @@ func (h *AssessmentHandler) createStaff(w http.ResponseWriter, r *http.Request) 
 	if !h.requireAnyRole(w, r, "admin", "dlc_director", "hod") {
 		return
 	}
-	var staff models.Staff
-	if err := decodeJSON(w, r, &staff); err != nil {
+	var payload createStaffPayload
+	if err := decodeJSON(w, r, &payload); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
+	}
+	staff := payload.Staff
+	if payload.Password != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		staff.PasswordHash = string(hash)
 	}
 	if err := h.db.Create(&staff).Error; err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -45,9 +60,9 @@ func (h *AssessmentHandler) createStaff(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *AssessmentHandler) getMyStaffProfile(w http.ResponseWriter, r *http.Request) {
-	claims, ok := middleware.StaffClaimsFromHeaders(r)
+	claims, ok := middleware.StaffClaimsFromRequest(r)
 	if !ok {
-		writeError(w, http.StatusUnauthorized, "staff authentication headers are required")
+		writeError(w, http.StatusUnauthorized, "staff authentication is required")
 		return
 	}
 	var staff models.Staff
@@ -94,7 +109,7 @@ func (h *AssessmentHandler) createStaffRole(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusBadRequest, "role is required")
 		return
 	}
-	claims, ok := middleware.StaffClaimsFromHeaders(r)
+	claims, ok := middleware.StaffClaimsFromRequest(r)
 	if ok && role.AssignedByID == nil {
 		role.AssignedByID = &claims.ID
 	}
@@ -106,9 +121,9 @@ func (h *AssessmentHandler) createStaffRole(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *AssessmentHandler) requireAnyRole(w http.ResponseWriter, r *http.Request, roles ...string) bool {
-	claims, ok := middleware.StaffClaimsFromHeaders(r)
+	claims, ok := middleware.StaffClaimsFromRequest(r)
 	if !ok {
-		writeError(w, http.StatusUnauthorized, "staff authentication headers are required")
+		writeError(w, http.StatusUnauthorized, "staff authentication is required")
 		return false
 	}
 	allowed := map[string]bool{}
