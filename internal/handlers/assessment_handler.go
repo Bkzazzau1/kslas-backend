@@ -17,6 +17,9 @@ func NewAssessmentHandler(db *gorm.DB) *AssessmentHandler { return &AssessmentHa
 
 func (h *AssessmentHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /health", h.health)
+	mux.HandleFunc("POST /api/auth/staff/login", h.staffLogin)
+	mux.HandleFunc("POST /api/uploads", h.uploadFile)
+	mux.Handle("GET /uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir(uploadRoot()))))
 	mux.HandleFunc("GET /api/staff/me", h.getMyStaffProfile)
 	mux.HandleFunc("GET /api/admin/staff", h.listStaff)
 	mux.HandleFunc("POST /api/admin/staff", h.createStaff)
@@ -53,6 +56,8 @@ func (h *AssessmentHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/exam-officer/marked-exam-scripts", h.listMarkedExamScripts)
 	mux.HandleFunc("PATCH /api/exam-officer/marked-exam-scripts/", h.reviewMarkedExamScripts)
 	mux.HandleFunc("GET /api/student/assessments", h.listPublishedAssessments)
+	mux.HandleFunc("GET /api/student/assignments", h.listPublishedAssignmentsForStudents)
+	mux.HandleFunc("POST /api/student/assignments/", h.submitStudentAssignment)
 	mux.HandleFunc("POST /api/student/assessments/", h.studentAssessmentAction)
 	mux.HandleFunc("POST /api/student/answers", h.submitAnswer)
 }
