@@ -42,6 +42,13 @@ func NewRouter(dep *Dependencies) http.Handler {
 		),
 	)
 	mux.Handle(
+		"/api/auth/change-password",
+		chain(
+			method(http.MethodPost, http.HandlerFunc(dep.AuthHandler.ChangePassword)),
+			middleware.AuthMiddleware(dep.JWTService),
+		),
+	)
+	mux.Handle(
 		"/api/academic/ping",
 		chain(
 			method(http.MethodGet, http.HandlerFunc(academicPingHandler)),
@@ -58,6 +65,8 @@ func NewRouter(dep *Dependencies) http.Handler {
 	mux.Handle("/api/courses", chain(http.HandlerFunc(dep.AcademicHandler.Courses), middleware.AuthMiddleware(dep.JWTService)))
 	mux.Handle("/api/courses/{courseID}", chain(http.HandlerFunc(dep.AcademicHandler.CourseByID), middleware.AuthMiddleware(dep.JWTService)))
 	mux.Handle("/api/staff", chain(http.HandlerFunc(dep.AdminHandler.Staff), middleware.AuthMiddleware(dep.JWTService)))
+	mux.Handle("/api/staff/{staffID}/reset-password", chain(http.HandlerFunc(dep.AdminHandler.StaffPasswordReset), middleware.AuthMiddleware(dep.JWTService)))
+	mux.Handle("/api/staff/{staffID}/status", chain(http.HandlerFunc(dep.AdminHandler.StaffStatus), middleware.AuthMiddleware(dep.JWTService)))
 	mux.Handle("/api/students", chain(http.HandlerFunc(dep.AdminHandler.Students), middleware.AuthMiddleware(dep.JWTService)))
 	mux.Handle("/api/courses/{courseID}/lecturers", chain(http.HandlerFunc(dep.AdminHandler.CourseLecturers), middleware.AuthMiddleware(dep.JWTService)))
 	mux.Handle("/api/courses/{courseID}/forum/posts", chain(http.HandlerFunc(dep.ForumHandler.CourseForumPosts), middleware.AuthMiddleware(dep.JWTService)))
