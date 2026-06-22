@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"kslasbackend/internal/dto"
@@ -18,10 +19,31 @@ func NewAdministrationHandler(administrationService *services.AdministrationServ
 }
 
 func (h *AdministrationHandler) Staff(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeMethodNotAllowed(w, http.MethodPost)
+	switch r.Method {
+	case http.MethodGet:
+		h.listStaff(w, r)
+	case http.MethodPost:
+		h.createStaff(w, r)
+	default:
+		writeMethodNotAllowed(w, http.MethodGet, http.MethodPost)
+	}
+}
+
+func (h *AdministrationHandler) listStaff(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthenticated user")
 		return
 	}
+	items, err := h.administrationService.ListStaff(r.Context(), userID)
+	if err != nil {
+		writeAcademicError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, dto.ListResponse[dto.StaffResponse]{Items: items, Count: len(items)})
+}
+
+func (h *AdministrationHandler) createStaff(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())
 	if !ok {
 		writeError(w, http.StatusUnauthorized, "unauthenticated user")
@@ -38,6 +60,64 @@ func (h *AdministrationHandler) Staff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, item)
+}
+
+func (h *AdministrationHandler) StaffPasswordReset(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeMethodNotAllowed(w, http.MethodPost)
+		return
+	}
+	userID, staffID, ok := h.requireStaffAction(w, r)
+	if !ok {
+		return
+	}
+	var req dto.StaffResetPasswordRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := h.administrationService.ResetStaffPassword(r.Context(), userID, staffID, req.Password); err != nil {
+		writeAcademicError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "password reset successful"})
+}
+
+func (h *AdministrationHandler) StaffStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		writeMethodNotAllowed(w, http.MethodPatch)
+		return
+	}
+	userID, staffID, ok := h.requireStaffAction(w, r)
+	if !ok {
+		return
+	}
+	var req dto.StaffStatusUpdateRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	item, err := h.administrationService.UpdateStaffStatus(r.Context(), userID, staffID, req.Status)
+	if err != nil {
+		writeAcademicError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
+func (h *AdministrationHandler) requireStaffAction(w http.ResponseWriter, r *http.Request) (uint, uint, bool) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthenticated user")
+		return 0, 0, false
+	}
+	staffIDRaw := strings.TrimSpace(r.PathValue("staffID"))
+	staffID64, err := strconv.ParseUint(staffIDRaw, 10, 64)
+	if err != nil || staffID64 == 0 {
+		writeError(w, http.StatusBadRequest, "valid staff id is required")
+		return 0, 0, false
+	}
+	return userID, uint(staffID64), true
 }
 
 func (h *AdministrationHandler) Students(w http.ResponseWriter, r *http.Request) {
@@ -137,10 +217,7 @@ func (h *AdministrationHandler) listMyCourseRegistrations(w http.ResponseWriter,
 		writeAcademicError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, dto.ListResponse[dto.CourseRegistrationResponse]{
-		Items: items,
-		Count: len(items),
-	})
+	writeJSON(w, http.StatusOK, dto.ListResponse[dto.CourseRegistrationResponse]{Items: items, Count: len(items)})
 }
 
 func (h *AdministrationHandler) registerMyCourses(w http.ResponseWriter, r *http.Request) {
@@ -159,8 +236,5 @@ func (h *AdministrationHandler) registerMyCourses(w http.ResponseWriter, r *http
 		writeAcademicError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, dto.ListResponse[dto.CourseRegistrationResponse]{
-		Items: items,
-		Count: len(items),
-	})
+	writeJSON(w, http.StatusCreated, dto.ListResponse[dto.CourseRegistrationResponse]{Items: items, Count: len(items)})
 }
