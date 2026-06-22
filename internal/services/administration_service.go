@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"kslasbackend/internal/database/models"
 	"kslasbackend/internal/dto"
 	"kslasbackend/internal/rbac"
@@ -39,7 +41,9 @@ func (s *AdministrationService) CreateStaff(ctx context.Context, userID uint, re
 	if err != nil {
 		return nil, ValidationError{Message: err.Error()}
 	}
+	staffID := strings.TrimSpace(req.StaffID)
 	user := &models.User{
+		UUID:         uuid.NewString(),
 		FirstName:    req.FirstName,
 		LastName:     req.LastName,
 		MiddleName:   req.MiddleName,
@@ -47,7 +51,8 @@ func (s *AdministrationService) CreateStaff(ctx context.Context, userID uint, re
 		Phone:        req.Phone,
 		PasswordHash: hash,
 		Gender:       req.Gender,
-		StaffID:      req.StaffID,
+		MatricNo:     "STAFF-" + staffID,
+		StaffID:      staffID,
 		UserType:     models.UserTypeStaff,
 		Status:       models.UserStatusActive,
 	}
@@ -70,6 +75,7 @@ func (s *AdministrationService) CreateStudent(ctx context.Context, userID uint, 
 		return nil, ValidationError{Message: err.Error()}
 	}
 	user := &models.User{
+		UUID:         uuid.NewString(),
 		FirstName:    req.FirstName,
 		LastName:     req.LastName,
 		MiddleName:   req.MiddleName,
@@ -78,6 +84,7 @@ func (s *AdministrationService) CreateStudent(ctx context.Context, userID uint, 
 		PasswordHash: hash,
 		Gender:       req.Gender,
 		MatricNo:     req.MatricNo,
+		StaffID:      "STUDENT-" + strings.TrimSpace(req.MatricNo),
 		UserType:     models.UserTypeStudent,
 		Status:       models.UserStatusActive,
 	}
