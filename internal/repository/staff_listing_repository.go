@@ -40,6 +40,6 @@ func (r *TeachingRepository) UpdateStaffStatus(ctx context.Context, staffUserID 
 	return r.db.WithContext(ctx).
 		Model(&models.User{}).
 		Where("id = ? AND user_type = ?", staffUserID, models.UserTypeStaff).
-		Update("status", status).
+		UpdateColumn("status", status).
 		Error
 }
