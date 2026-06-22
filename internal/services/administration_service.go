@@ -28,9 +28,10 @@ func NewAdministrationService(repo *repository.TeachingRepository, passwordServi
 
 func (s *AdministrationService) CreateStaff(ctx context.Context, userID uint, req dto.StaffCreateRequest) (*dto.UserResponse, error) {
 	roleCode := strings.ToLower(strings.TrimSpace(req.RoleCode))
-	if roleCode != "lecturer" && roleCode != "exam_officer" && roleCode != "registry_officer" {
-		return nil, ValidationError{Message: "role_code must be lecturer, exam_officer, or registry_officer"}
+	if !allowedStaffRole(roleCode) {
+		return nil, ValidationError{Message: "unsupported staff role"}
 	}
+	roleCode = normalizeStaffRole(roleCode)
 	if req.DepartmentID == 0 {
 		return nil, ValidationError{Message: "department_id is required"}
 	}
