@@ -55,3 +55,26 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		"user": user,
 	})
 }
+
+func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthenticated user")
+		return
+	}
+	var req dto.ChangePasswordRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request payload")
+		return
+	}
+	if err := h.authService.ChangeCredential(r.Context(), userID, req.CurrentPassword, req.NewPassword); err != nil {
+		switch {
+		case errors.Is(err, services.ErrInvalidCredentials):
+			writeError(w, http.StatusUnauthorized, "invalid current password")
+		default:
+			writeAcademicError(w, err)
+		}
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"message": "password changed successfully"})
+}
