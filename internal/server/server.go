@@ -67,6 +67,7 @@ func NewRouter(dep *Dependencies) http.Handler {
 	mux.Handle("/api/staff", chain(http.HandlerFunc(dep.AdminHandler.Staff), middleware.AuthMiddleware(dep.JWTService)))
 	mux.Handle("/api/staff/{staffID}/reset-password", chain(http.HandlerFunc(dep.AdminHandler.StaffPasswordReset), middleware.AuthMiddleware(dep.JWTService)))
 	mux.Handle("/api/staff/{staffID}/status", chain(http.HandlerFunc(dep.AdminHandler.StaffStatus), middleware.AuthMiddleware(dep.JWTService)))
+	mux.Handle("/api/admin/staff-roles", chain(http.HandlerFunc(dep.AdminHandler.StaffRoleAssignment), middleware.AuthMiddleware(dep.JWTService)))
 	mux.Handle("/api/students", chain(http.HandlerFunc(dep.AdminHandler.Students), middleware.AuthMiddleware(dep.JWTService)))
 	mux.Handle("/api/courses/{courseID}/lecturers", chain(http.HandlerFunc(dep.AdminHandler.CourseLecturers), middleware.AuthMiddleware(dep.JWTService)))
 	mux.Handle("/api/courses/{courseID}/forum/posts", chain(http.HandlerFunc(dep.ForumHandler.CourseForumPosts), middleware.AuthMiddleware(dep.JWTService)))

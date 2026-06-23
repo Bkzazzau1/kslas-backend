@@ -114,3 +114,53 @@ func mapStaffResponse(user *models.User) dto.StaffResponse {
 		UpdatedAt:       user.UpdatedAt,
 	}
 }
+
+func (s *AdministrationService) AssignStaffRole(ctx context.Context, userID uint, req dto.StaffRoleAssignmentRequest) (*dto.StaffResponse, error) {
+if req.StaffID == 0 {
+return nil, ValidationError{Message: "staff_id is required"}
+}
+
+roleCode := strings.ToLower(strings.TrimSpace(req.Role))
+if !allowedStaffRole(roleCode) {
+return nil, ValidationError{Message: "unsupported staff role"}
+}
+roleCode = normalizeStaffRole(roleCode)
+
+scope := strings.ToLower(strings.TrimSpace(req.Scope))
+if scope == "" {
+scope = "department"
+}
+
+var scopeID *uint
+switch scope {
+case "school":
+scopeID = nil
+case "faculty":
+scopeID = req.FacultyID
+case "department":
+scopeID = req.DepartmentID
+case "programme", "program":
+scope = "programme"
+scopeID = req.ProgrammeID
+case "course":
+scopeID = req.CourseID
+default:
+return nil, ValidationError{Message: "scope must be school, faculty, department, programme, or course"}
+}
+
+if scope != "school" && scopeID == nil {
+return nil, ValidationError{Message: "scope id is required"}
+}
+
+if err := s.repo.AssignStaffRole(ctx, req.StaffID, roleCode, models.ScopeType(scope), scopeID, userID); err != nil {
+return nil, err
+}
+
+user, err := s.repo.GetStaffUser(ctx, req.StaffID)
+if err != nil {
+return nil, err
+}
+
+response := mapStaffResponse(user)
+return &response, nil
+}

@@ -238,3 +238,30 @@ func (h *AdministrationHandler) registerMyCourses(w http.ResponseWriter, r *http
 	}
 	writeJSON(w, http.StatusCreated, dto.ListResponse[dto.CourseRegistrationResponse]{Items: items, Count: len(items)})
 }
+
+func (h *AdministrationHandler) StaffRoleAssignment(w http.ResponseWriter, r *http.Request) {
+if r.Method != http.MethodPost {
+writeMethodNotAllowed(w, http.MethodPost)
+return
+}
+
+userID, ok := middleware.UserIDFromContext(r.Context())
+if !ok {
+writeError(w, http.StatusUnauthorized, "unauthenticated user")
+return
+}
+
+var req dto.StaffRoleAssignmentRequest
+if err := decodeJSON(w, r, &req); err != nil {
+writeError(w, http.StatusBadRequest, err.Error())
+return
+}
+
+item, err := h.administrationService.AssignStaffRole(r.Context(), userID, req)
+if err != nil {
+writeAcademicError(w, err)
+return
+}
+
+writeJSON(w, http.StatusOK, item)
+}

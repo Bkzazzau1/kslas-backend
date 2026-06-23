@@ -28,3 +28,13 @@ type StaffResetPasswordRequest struct {
 type StaffStatusUpdateRequest struct {
 	Status string `json:"status"`
 }
+
+type StaffRoleAssignmentRequest struct {
+StaffID      uint   `json:"staff_id"`
+Role        string `json:"role"`
+Scope       string `json:"scope"`
+FacultyID   *uint  `json:"faculty_id,omitempty"`
+DepartmentID *uint `json:"department_id,omitempty"`
+ProgrammeID *uint `json:"programme_id,omitempty"`
+CourseID     *uint `json:"course_id,omitempty"`
+}
