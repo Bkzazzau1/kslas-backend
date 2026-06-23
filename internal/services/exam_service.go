@@ -68,7 +68,21 @@ func (s *ExamService) ListExams(ctx context.Context, userID uint, filter reposit
 		target = scopePtr(rbac.CourseScope(*filter.CourseID))
 	}
 	if err := s.ensurePermission(ctx, userID, "course.view", target); err != nil {
-		return nil, err
+		examOfficer, roleErr := s.repo.UserHasRole(ctx, userID, "exam_officer")
+		if roleErr != nil {
+			return nil, roleErr
+		}
+		moderator, roleErr := s.repo.UserHasRole(ctx, userID, "moderator")
+		if roleErr != nil {
+			return nil, roleErr
+		}
+		hod, roleErr := s.repo.UserHasRole(ctx, userID, "hod")
+		if roleErr != nil {
+			return nil, roleErr
+		}
+		if !examOfficer && !moderator && !hod {
+			return nil, err
+		}
 	}
 	items, err := s.repo.ListExams(ctx, filter)
 	if err != nil {
