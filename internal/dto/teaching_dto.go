@@ -826,3 +826,34 @@ type ExamScheduleRequest struct {
 	InvigilatorIDs  []uint    `json:"invigilator_ids"`
 	Comment         string    `json:"comment"`
 }
+
+type LecturerExamScriptResponse struct {
+	AttemptID            uint           `json:"attempt_id"`
+	AttemptUUID          string         `json:"attempt_uuid"`
+	ExamID               uint           `json:"exam_id"`
+	ExamTitle            string         `json:"exam_title"`
+	CourseID             uint           `json:"course_id"`
+	CourseCode           string         `json:"course_code"`
+	CourseTitle          string         `json:"course_title"`
+	StudentID            uint           `json:"student_id"`
+	StudentName          string         `json:"student_name"`
+	CandidateNo          string         `json:"candidate_no"`
+	Email                string         `json:"email,omitempty"`
+	Status               string         `json:"status"`
+	QuestionPayload      map[string]any `json:"question_payload,omitempty"`
+	AnswerPayload        map[string]any `json:"answer_payload,omitempty"`
+	QuestionTypes        []string       `json:"question_types"`
+	QuestionCount        int            `json:"question_count"`
+	ObjectiveScore       float64        `json:"objective_score"`
+	TheoryScore          float64        `json:"theory_score"`
+	PracticalScore       float64        `json:"practical_score"`
+	Score                float64        `json:"score"`
+	LecturerScore        float64        `json:"lecturer_score"`
+	ModeratedScore       float64        `json:"moderated_score"`
+	MaxScore             float64        `json:"max_score"`
+	IntegrityScore       int            `json:"integrity_score"`
+	Feedback             string         `json:"feedback,omitempty"`
+	TerminationReason    string         `json:"termination_reason,omitempty"`
+	SubmittedAt          *time.Time     `json:"submitted_at,omitempty"`
+	SharedWithLecturerAt *time.Time     `json:"shared_with_lecturer_at,omitempty"`
+}

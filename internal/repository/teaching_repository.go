@@ -1400,3 +1400,73 @@ func (r *TeachingRepository) EnsureCourseBelongsToSession(ctx context.Context, s
 func (r *TeachingRepository) DebugName() string {
 	return fmt.Sprintf("teaching_repository:%p", r)
 }
+
+type LecturerExamScript struct {
+	AttemptID            uint
+	AttemptUUID          string
+	ExamID               uint
+	ExamTitle            string
+	CourseID             uint
+	CourseCode           string
+	CourseTitle          string
+	StudentID            uint
+	StudentFirstName     string
+	StudentLastName      string
+	MatricNo             string
+	Email                string
+	Status               models.ExamAttemptStatus
+	QuestionPayload      []byte
+	AnswerPayload        []byte
+	IntegrityScore       int
+	SubmittedAt          *time.Time
+	SharedWithLecturerAt *time.Time
+	Score                float64
+	LecturerScore        float64
+	ModeratedScore       float64
+	Feedback             string
+	TerminationReason    string
+}
+
+func (r *TeachingRepository) ListLecturerExamScripts(ctx context.Context, lecturerID uint) ([]LecturerExamScript, error) {
+	var items []LecturerExamScript
+
+	err := r.db.WithContext(ctx).
+		Table("exam_attempts AS ea").
+		Select(`
+ea.id AS attempt_id,
+ea.uuid AS attempt_uuid,
+ea.exam_id,
+exams.title AS exam_title,
+exams.course_id,
+courses.code AS course_code,
+courses.title AS course_title,
+ea.student_id,
+users.first_name AS student_first_name,
+users.last_name AS student_last_name,
+users.matric_no,
+users.email,
+ea.status,
+ea.question_payload,
+ea.answer_payload,
+ea.integrity_score,
+ea.submitted_at,
+ea.shared_with_lecturer_at,
+ea.score,
+ea.lecturer_score,
+ea.moderated_score,
+ea.feedback,
+ea.termination_reason
+`).
+		Joins("JOIN exams ON exams.id = ea.exam_id").
+		Joins("JOIN courses ON courses.id = exams.course_id").
+		Joins("JOIN users ON users.id = ea.student_id").
+		Where("exams.lecturer_id = ?", lecturerID).
+		Where("ea.status IN ?", []models.ExamAttemptStatus{
+			models.ExamAttemptSubmittedForMarking,
+			models.ExamAttemptMarked,
+		}).
+		Order("COALESCE(ea.shared_with_lecturer_at, ea.submitted_at, ea.updated_at) DESC").
+		Scan(&items).Error
+
+	return items, err
+}

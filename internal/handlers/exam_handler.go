@@ -556,3 +556,33 @@ func (h *ExamHandler) ExamSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, item)
 }
+
+func (h *ExamHandler) LecturerExamScripts(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeMethodNotAllowed(w, http.MethodGet)
+		return
+	}
+
+	userID, ok := middleware.UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	lecturerID, err := optionalUintQuery(r, "lecturer_id")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	items, err := h.examService.ListLecturerExamScripts(r.Context(), userID, lecturerID)
+	if err != nil {
+		writeAcademicError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dto.ListResponse[dto.LecturerExamScriptResponse]{
+		Items: items,
+		Count: len(items),
+	})
+}

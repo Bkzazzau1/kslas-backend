@@ -88,6 +88,7 @@ func NewRouter(dep *Dependencies) http.Handler {
 	mux.Handle("/api/assignments/{assignmentID}/submissions", chain(http.HandlerFunc(dep.AssignmentHandler.AssignmentSubmissions), middleware.AuthMiddleware(dep.JWTService)))
 	mux.Handle("/api/assignments/{assignmentID}/grades", chain(http.HandlerFunc(dep.AssignmentHandler.AssignmentGrades), middleware.AuthMiddleware(dep.JWTService)))
 	mux.Handle("/api/assignments/{assignmentID}/peer-reviews/{reviewID}", chain(http.HandlerFunc(dep.AssignmentHandler.AssignmentPeerReview), middleware.AuthMiddleware(dep.JWTService)))
+	mux.Handle("/api/lecturer/exam-scripts", chain(http.HandlerFunc(dep.ExamHandler.LecturerExamScripts), middleware.AuthMiddleware(dep.JWTService)))
 	mux.Handle("/api/exams", chain(http.HandlerFunc(dep.ExamHandler.Exams), middleware.AuthMiddleware(dep.JWTService)))
 	mux.Handle("/api/exam-venues", chain(http.HandlerFunc(dep.ExamHandler.Venues), middleware.AuthMiddleware(dep.JWTService)))
 	mux.Handle("/api/exams/{examID}", chain(http.HandlerFunc(dep.ExamHandler.ExamByID), middleware.AuthMiddleware(dep.JWTService)))
