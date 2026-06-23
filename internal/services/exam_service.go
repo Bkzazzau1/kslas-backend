@@ -85,8 +85,15 @@ func (s *ExamService) CreateExam(ctx context.Context, userID uint, req dto.ExamC
 	if err := validateExamRequest(courseID, req.Title, req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}
-	if err := s.ensurePermission(ctx, userID, "exam.create", scopePtr(rbac.CourseScope(courseID))); err != nil {
+	lecturerID := nonZero(req.LecturerID, userID)
+	assignedLecturer, err := s.repo.LecturerAssignedToCourse(ctx, userID, courseID)
+	if err != nil {
 		return nil, err
+	}
+	if !assignedLecturer {
+		if err := s.ensurePermission(ctx, userID, "exam.create", scopePtr(rbac.CourseScope(courseID))); err != nil {
+			return nil, err
+		}
 	}
 
 	payload, err := encodeJSONBytes(req.QuestionPayload)
@@ -111,7 +118,7 @@ func (s *ExamService) CreateExam(ctx context.Context, userID uint, req dto.ExamC
 		DurationMinutes: req.DurationMinutes,
 		DeliveryMode:    examDeliveryModeOrDefault(req.DeliveryMode),
 		QuestionPayload: payload,
-		LecturerID:      nonZero(req.LecturerID, userID),
+		LecturerID:      lecturerID,
 		ExamOfficerID:   req.ExamOfficerID,
 		Status:          status,
 		CreatedBy:       userID,
@@ -1180,4 +1187,156 @@ func appendExamWorkflowNote(item *models.Exam, action, comment string, userID ui
 
 	item.QuestionPayload = encoded
 	return nil
+}
+
+func (s *ExamService) ListLecturerExamScripts(ctx context.Context, userID uint, lecturerID *uint) ([]dto.LecturerExamScriptResponse, error) {
+	targetLecturerID := userID
+	if lecturerID != nil && *lecturerID != 0 {
+		targetLecturerID = *lecturerID
+	}
+
+	items, err := s.repo.ListLecturerExamScripts(ctx, targetLecturerID)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]dto.LecturerExamScriptResponse, 0, len(items))
+	for _, item := range items {
+		questionPayload := decodeJSONBytes(item.QuestionPayload)
+		answerPayload := decodeJSONBytes(item.AnswerPayload)
+		questions := collectQuestionPayloadItems(questionPayload)
+		questionTypes := examQuestionTypes(questions)
+		maxScore := examMaxScore(questionPayload, questions)
+
+		out = append(out, dto.LecturerExamScriptResponse{
+			AttemptID:            item.AttemptID,
+			AttemptUUID:          item.AttemptUUID,
+			ExamID:               item.ExamID,
+			ExamTitle:            item.ExamTitle,
+			CourseID:             item.CourseID,
+			CourseCode:           item.CourseCode,
+			CourseTitle:          item.CourseTitle,
+			StudentID:            item.StudentID,
+			StudentName:          cleanName(item.StudentFirstName, item.StudentLastName, fmt.Sprintf("Student %d", item.StudentID)),
+			CandidateNo:          nonEmpty(item.MatricNo, fmt.Sprintf("DLC/EXAM/%03d", item.StudentID)),
+			Email:                item.Email,
+			Status:               string(item.Status),
+			QuestionPayload:      questionPayload,
+			AnswerPayload:        answerPayload,
+			QuestionTypes:        questionTypes,
+			QuestionCount:        len(questions),
+			ObjectiveScore:       examScorePart(answerPayload, "objective_score", "objective", "obj"),
+			TheoryScore:          examScorePart(answerPayload, "theory_score", "essay_score", "theory", "essay"),
+			PracticalScore:       examScorePart(answerPayload, "practical_score", "file_upload_score", "image_score", "practical"),
+			Score:                item.Score,
+			LecturerScore:        item.LecturerScore,
+			ModeratedScore:       item.ModeratedScore,
+			MaxScore:             maxScore,
+			IntegrityScore:       item.IntegrityScore,
+			Feedback:             item.Feedback,
+			TerminationReason:    item.TerminationReason,
+			SubmittedAt:          item.SubmittedAt,
+			SharedWithLecturerAt: item.SharedWithLecturerAt,
+		})
+	}
+
+	return out, nil
+}
+
+func examQuestionTypes(questions []map[string]any) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0)
+
+	for _, question := range questions {
+		qType := normalizeQuestionType(fmt.Sprint(question["type"]))
+		if qType == "" || seen[qType] {
+			continue
+		}
+		seen[qType] = true
+		out = append(out, qType)
+	}
+
+	return out
+}
+
+func examMaxScore(payload map[string]any, questions []map[string]any) float64 {
+	total := 0.0
+
+	for _, question := range questions {
+		mark := examNumber(question["marks"])
+		if mark == 0 {
+			mark = examNumber(question["max_marks"])
+		}
+		total += mark
+	}
+
+	if total == 0 {
+		total = examNumber(payload["total_marks"])
+	}
+	if total == 0 {
+		total = examNumber(payload["max_score"])
+	}
+
+	return total
+}
+
+func examScorePart(payload map[string]any, keys ...string) float64 {
+	for _, key := range keys {
+		if value := examNumber(payload[key]); value != 0 {
+			return value
+		}
+	}
+
+	rawScores, ok := payload["scores"].(map[string]any)
+	if ok {
+		for _, key := range keys {
+			if value := examNumber(rawScores[key]); value != 0 {
+				return value
+			}
+		}
+	}
+
+	return 0
+}
+
+func examNumber(value any) float64 {
+	switch v := value.(type) {
+	case float64:
+		return v
+	case float32:
+		return float64(v)
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case uint:
+		return float64(v)
+	case uint64:
+		return float64(v)
+	case json.Number:
+		out, _ := v.Float64()
+		return out
+	case string:
+		var out float64
+		_, _ = fmt.Sscan(strings.TrimSpace(v), &out)
+		return out
+	default:
+		return 0
+	}
+}
+
+func cleanName(firstName, lastName, fallback string) string {
+	name := strings.TrimSpace(strings.TrimSpace(firstName) + " " + strings.TrimSpace(lastName))
+	if name == "" {
+		return fallback
+	}
+	return name
+}
+
+func nonEmpty(value, fallback string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fallback
+	}
+	return value
 }
