@@ -297,11 +297,16 @@ func (s *ExamService) MarkAttempt(ctx context.Context, userID, attemptID uint, r
 	if err != nil {
 		return nil, err
 	}
-	if err := s.ensurePermission(ctx, userID, "result.mark", scopePtr(rbac.CourseScope(attempt.Exam.CourseID))); err != nil {
-		return nil, err
+	if userID != attempt.Exam.LecturerID {
+		if err := s.ensurePermission(ctx, userID, "result.mark", scopePtr(rbac.CourseScope(attempt.Exam.CourseID))); err != nil {
+			return nil, err
+		}
+		if err := s.ensureExamOfficer(ctx, userID); err != nil {
+			return nil, err
+		}
 	}
-	if err := s.ensureExamOfficer(ctx, userID); err != nil {
-		return nil, err
+	if userID == attempt.Exam.LecturerID && attempt.Status != models.ExamAttemptSubmittedForMarking && attempt.Status != models.ExamAttemptMarked {
+		return nil, ValidationError{Message: "script must be shared with lecturer before marking"}
 	}
 	if attempt.Status != models.ExamAttemptSubmitted && attempt.Status != models.ExamAttemptSubmittedForMarking && attempt.Status != models.ExamAttemptMarked {
 		return nil, ValidationError{Message: "exam must be submitted before marking"}
@@ -705,27 +710,87 @@ func validateQuestionPayload(payload map[string]any) error {
 	if payload == nil {
 		return nil
 	}
-	rawQuestions, ok := payload["questions"]
-	if !ok {
-		return nil
-	}
-	questions, ok := rawQuestions.([]any)
-	if !ok {
-		return ValidationError{Message: "question_payload.questions must be an array"}
-	}
-	for _, raw := range questions {
-		question, ok := raw.(map[string]any)
-		if !ok {
-			return ValidationError{Message: "each question must be an object"}
-		}
-		qType := strings.ToLower(strings.TrimSpace(fmt.Sprint(question["type"])))
+
+	questions := collectQuestionPayloadItems(payload)
+	for _, question := range questions {
+		qType := normalizeQuestionType(fmt.Sprint(question["type"]))
 		switch qType {
-		case "objective", "obj", "fill_blank", "fill_in_blank", "essay":
+		case "objective", "fill_blank", "drag_drop", "essay", "image_question", "file_upload":
 		default:
-			return ValidationError{Message: "question type must be objective, fill_blank, or essay"}
+			return ValidationError{Message: "question type must be objective, fill_blank, drag_drop, essay, image_question, or file_upload"}
+		}
+
+		if strings.TrimSpace(fmt.Sprint(question["id"])) == "" {
+			return ValidationError{Message: "each question must have an id"}
+		}
+		if strings.TrimSpace(fmt.Sprint(question["prompt"])) == "" {
+			return ValidationError{Message: "each question must have a prompt"}
 		}
 	}
+
 	return nil
+}
+
+func collectQuestionPayloadItems(payload map[string]any) []map[string]any {
+	out := make([]map[string]any, 0)
+
+	if rawQuestions, ok := payload["questions"]; ok {
+		if questions, ok := rawQuestions.([]any); ok {
+			out = append(out, questionMapsFromList(questions)...)
+		}
+	}
+
+	if rawSections, ok := payload["sections"]; ok {
+		if sections, ok := rawSections.([]any); ok {
+			for _, rawSection := range sections {
+				section, ok := rawSection.(map[string]any)
+				if !ok {
+					continue
+				}
+				rawQuestions, ok := section["questions"].([]any)
+				if !ok {
+					continue
+				}
+				out = append(out, questionMapsFromList(rawQuestions)...)
+			}
+		}
+	}
+
+	return out
+}
+
+func questionMapsFromList(items []any) []map[string]any {
+	out := make([]map[string]any, 0, len(items))
+	for _, raw := range items {
+		question, ok := raw.(map[string]any)
+		if ok {
+			out = append(out, question)
+		}
+	}
+	return out
+}
+
+func normalizeQuestionType(raw string) string {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	value = strings.ReplaceAll(value, "-", "_")
+	value = strings.ReplaceAll(value, " ", "_")
+
+	switch value {
+	case "obj", "objective_question", "multiple_choice", "mcq":
+		return "objective"
+	case "fill_in_blank", "fill_the_blank", "fillinblank", "fill_blank":
+		return "fill_blank"
+	case "dragdrop", "drag_and_drop", "drag_drop", "matching":
+		return "drag_drop"
+	case "theory", "long_answer", "short_answer", "essay":
+		return "essay"
+	case "image", "picture", "picture_upload", "image_upload", "image_question":
+		return "image_question"
+	case "file", "file_upload", "practical", "attachment":
+		return "file_upload"
+	default:
+		return value
+	}
 }
 
 func randomizedQuestionPayload(payload []byte, examID, studentID uint) ([]byte, error) {
@@ -962,4 +1027,157 @@ func mapProctoringAlert(item *models.ProctoringAlert) dto.ProctoringAlertRespons
 		AcknowledgedAt: item.AcknowledgedAt,
 		CreatedAt:      item.CreatedAt,
 	}
+}
+
+func (s *ExamService) SubmitExamToOfficer(ctx context.Context, userID, examID uint, req dto.ExamWorkflowActionRequest) (*dto.ExamResponse, error) {
+	item, err := s.repo.GetExam(ctx, examID)
+	if err != nil {
+		return nil, err
+	}
+	if userID != item.LecturerID {
+		if err := s.ensurePermission(ctx, userID, "exam.create", scopePtr(rbac.CourseScope(item.CourseID))); err != nil {
+			return nil, err
+		}
+	}
+	if item.Status == models.ExamStatusCompleted || item.Status == models.ExamStatusCancelled {
+		return nil, ValidationError{Message: "this exam can no longer be submitted"}
+	}
+	item.Status = models.ExamStatusOfficerReview
+	if err := appendExamWorkflowNote(item, "submitted_to_exam_officer", req.Comment, userID); err != nil {
+		return nil, err
+	}
+	if err := s.repo.UpdateExam(ctx, item); err != nil {
+		return nil, err
+	}
+	response := mapExam(item)
+	return &response, nil
+}
+
+func (s *ExamService) SendExamToModerator(ctx context.Context, userID, examID uint, req dto.ExamWorkflowActionRequest) (*dto.ExamResponse, error) {
+	item, err := s.repo.GetExam(ctx, examID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.ensurePermission(ctx, userID, "exam.schedule", scopePtr(rbac.CourseScope(item.CourseID))); err != nil {
+		return nil, err
+	}
+	if item.Status != models.ExamStatusOfficerReview && item.Status != models.ExamStatusModerated {
+		return nil, ValidationError{Message: "exam must be with exam officer before sending to moderator"}
+	}
+	item.Status = models.ExamStatusModeratorReview
+	if err := appendExamWorkflowNote(item, "sent_to_moderator", req.Comment, userID); err != nil {
+		return nil, err
+	}
+	if err := s.repo.UpdateExam(ctx, item); err != nil {
+		return nil, err
+	}
+	response := mapExam(item)
+	return &response, nil
+}
+
+func (s *ExamService) ModeratorReturnExam(ctx context.Context, userID, examID uint, req dto.ExamWorkflowActionRequest) (*dto.ExamResponse, error) {
+	item, err := s.repo.GetExam(ctx, examID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.ensurePermission(ctx, userID, "exam.submit_review", scopePtr(rbac.CourseScope(item.CourseID))); err != nil {
+		return nil, err
+	}
+	if item.Status != models.ExamStatusModeratorReview {
+		return nil, ValidationError{Message: "exam must be with moderator before review return"}
+	}
+	item.Status = models.ExamStatusModerated
+	if err := appendExamWorkflowNote(item, "moderator_returned", req.Comment, userID); err != nil {
+		return nil, err
+	}
+	if err := s.repo.UpdateExam(ctx, item); err != nil {
+		return nil, err
+	}
+	response := mapExam(item)
+	return &response, nil
+}
+
+func (s *ExamService) SendExamBackToLecturer(ctx context.Context, userID, examID uint, req dto.ExamWorkflowActionRequest) (*dto.ExamResponse, error) {
+	item, err := s.repo.GetExam(ctx, examID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.ensurePermission(ctx, userID, "exam.schedule", scopePtr(rbac.CourseScope(item.CourseID))); err != nil {
+		return nil, err
+	}
+	if item.Status != models.ExamStatusModerated && item.Status != models.ExamStatusOfficerReview {
+		return nil, ValidationError{Message: "exam must be under review before sending correction to lecturer"}
+	}
+	item.Status = models.ExamStatusLecturerCorrection
+	if err := appendExamWorkflowNote(item, "sent_back_to_lecturer", req.Comment, userID); err != nil {
+		return nil, err
+	}
+	if err := s.repo.UpdateExam(ctx, item); err != nil {
+		return nil, err
+	}
+	response := mapExam(item)
+	return &response, nil
+}
+
+func (s *ExamService) ScheduleExam(ctx context.Context, userID, examID uint, req dto.ExamScheduleRequest) (*dto.ExamResponse, error) {
+	item, err := s.repo.GetExam(ctx, examID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.ensurePermission(ctx, userID, "exam.schedule", scopePtr(rbac.CourseScope(item.CourseID))); err != nil {
+		return nil, err
+	}
+	if err := validateExamRequest(item.CourseID, item.Title, req.StartTime, req.EndTime); err != nil {
+		return nil, err
+	}
+	if item.Status != models.ExamStatusModerated && item.Status != models.ExamStatusOfficerReview && item.Status != models.ExamStatusLecturerCorrection {
+		return nil, ValidationError{Message: "exam must complete review before scheduling"}
+	}
+	item.StartTime = req.StartTime
+	item.EndTime = req.EndTime
+	item.DurationMinutes = req.DurationMinutes
+	item.Venue = req.Venue
+	item.Status = models.ExamStatusScheduled
+	if err := appendExamWorkflowNote(item, "scheduled_by_exam_officer", req.Comment, userID); err != nil {
+		return nil, err
+	}
+	if err := s.repo.UpdateExam(ctx, item); err != nil {
+		return nil, err
+	}
+	if req.InvigilatorIDs != nil {
+		if _, err := s.repo.ReplaceExamInvigilators(ctx, item.ID, userID, req.InvigilatorIDs); err != nil {
+			return nil, err
+		}
+	}
+	item, err = s.repo.GetExam(ctx, item.ID)
+	if err != nil {
+		return nil, err
+	}
+	response := mapExam(item)
+	return &response, nil
+}
+
+func appendExamWorkflowNote(item *models.Exam, action, comment string, userID uint) error {
+	data := decodeJSONBytes(item.QuestionPayload)
+	if data == nil {
+		data = map[string]any{}
+	}
+
+	rawNotes, _ := data["workflow_notes"].([]any)
+	rawNotes = append(rawNotes, map[string]any{
+		"action":  action,
+		"comment": strings.TrimSpace(comment),
+		"user_id": userID,
+		"at":      time.Now().UTC().Format(time.RFC3339),
+	})
+
+	data["workflow_notes"] = rawNotes
+
+	encoded, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	item.QuestionPayload = encoded
+	return nil
 }

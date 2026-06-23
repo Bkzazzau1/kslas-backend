@@ -446,3 +446,113 @@ func (h *ExamHandler) listInvigilatorAlerts(w http.ResponseWriter, r *http.Reque
 		Count: len(items),
 	})
 }
+
+func (h *ExamHandler) ExamSubmitToOfficer(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeMethodNotAllowed(w, http.MethodPost)
+		return
+	}
+	userID, examID, ok := requireUserAndPathID(w, r, "examID")
+	if !ok {
+		return
+	}
+	var req dto.ExamWorkflowActionRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	item, err := h.examService.SubmitExamToOfficer(r.Context(), userID, examID, req)
+	if err != nil {
+		writeAcademicError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
+func (h *ExamHandler) ExamSendToModerator(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeMethodNotAllowed(w, http.MethodPost)
+		return
+	}
+	userID, examID, ok := requireUserAndPathID(w, r, "examID")
+	if !ok {
+		return
+	}
+	var req dto.ExamWorkflowActionRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	item, err := h.examService.SendExamToModerator(r.Context(), userID, examID, req)
+	if err != nil {
+		writeAcademicError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
+func (h *ExamHandler) ExamModeratorReturn(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeMethodNotAllowed(w, http.MethodPost)
+		return
+	}
+	userID, examID, ok := requireUserAndPathID(w, r, "examID")
+	if !ok {
+		return
+	}
+	var req dto.ExamWorkflowActionRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	item, err := h.examService.ModeratorReturnExam(r.Context(), userID, examID, req)
+	if err != nil {
+		writeAcademicError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
+func (h *ExamHandler) ExamSendBackToLecturer(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeMethodNotAllowed(w, http.MethodPost)
+		return
+	}
+	userID, examID, ok := requireUserAndPathID(w, r, "examID")
+	if !ok {
+		return
+	}
+	var req dto.ExamWorkflowActionRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	item, err := h.examService.SendExamBackToLecturer(r.Context(), userID, examID, req)
+	if err != nil {
+		writeAcademicError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
+func (h *ExamHandler) ExamSchedule(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeMethodNotAllowed(w, http.MethodPost)
+		return
+	}
+	userID, examID, ok := requireUserAndPathID(w, r, "examID")
+	if !ok {
+		return
+	}
+	var req dto.ExamScheduleRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	item, err := h.examService.ScheduleExam(r.Context(), userID, examID, req)
+	if err != nil {
+		writeAcademicError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, item)
+}

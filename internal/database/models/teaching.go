@@ -185,17 +185,20 @@ func (s QuizStatus) Valid() bool {
 type ExamStatus string
 
 const (
-	ExamStatusDraft         ExamStatus = "draft"
-	ExamStatusOfficerReview ExamStatus = "officer_review"
-	ExamStatusScheduled     ExamStatus = "scheduled"
-	ExamStatusReleased      ExamStatus = "released"
-	ExamStatusCompleted     ExamStatus = "completed"
-	ExamStatusCancelled     ExamStatus = "cancelled"
+	ExamStatusDraft              ExamStatus = "draft"
+	ExamStatusOfficerReview      ExamStatus = "officer_review"
+	ExamStatusModeratorReview    ExamStatus = "moderator_review"
+	ExamStatusLecturerCorrection ExamStatus = "lecturer_correction"
+	ExamStatusModerated          ExamStatus = "moderated"
+	ExamStatusScheduled          ExamStatus = "scheduled"
+	ExamStatusReleased           ExamStatus = "released"
+	ExamStatusCompleted          ExamStatus = "completed"
+	ExamStatusCancelled          ExamStatus = "cancelled"
 )
 
 func (s ExamStatus) Valid() bool {
 	switch s {
-	case ExamStatusDraft, ExamStatusOfficerReview, ExamStatusScheduled, ExamStatusReleased, ExamStatusCompleted, ExamStatusCancelled:
+	case ExamStatusDraft, ExamStatusOfficerReview, ExamStatusModeratorReview, ExamStatusLecturerCorrection, ExamStatusModerated, ExamStatusScheduled, ExamStatusReleased, ExamStatusCompleted, ExamStatusCancelled:
 		return true
 	default:
 		return false

@@ -813,3 +813,16 @@ type LecturerCourseReportResponse struct {
 	HealthStatus              string                 `json:"health_status"`
 	Activities                []LecturerActivityItem `json:"activities"`
 }
+
+type ExamWorkflowActionRequest struct {
+	Comment string `json:"comment"`
+}
+
+type ExamScheduleRequest struct {
+	StartTime       time.Time `json:"start_time"`
+	EndTime         time.Time `json:"end_time"`
+	DurationMinutes uint      `json:"duration_minutes"`
+	Venue           string    `json:"venue"`
+	InvigilatorIDs  []uint    `json:"invigilator_ids"`
+	Comment         string    `json:"comment"`
+}
