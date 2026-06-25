@@ -35,6 +35,10 @@ func main() {
 		&models.CASubmission{},
 		&models.MarkedExamScriptSubmission{},
 		&models.Notification{},
+		&models.ReviewEvidenceCase{},
+		&models.ReviewEvidenceFile{},
+		&models.ReviewEvidenceTimelineItem{},
+		&models.ReviewEvidenceAction{},
 	); err != nil {
 		log.Fatalf("database migration failed: %v", err)
 	}
