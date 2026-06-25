@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/datatypes"
+	"gorm.io/gorm"
 
 	"kslasbackend/internal/models"
 )
@@ -20,8 +20,8 @@ type reviewEvidenceActionPayload struct {
 func (h *AssessmentHandler) listReviewEvidenceCases(w http.ResponseWriter, r *http.Request) {
 	query := h.db.
 		Preload("EvidenceFiles").
-		Preload("Timeline", func(db any) any { return db }).
-		Preload("Actions").
+		Preload("Timeline", func(db *gorm.DB) *gorm.DB { return db.Order("event_time asc") }).
+		Preload("Actions", func(db *gorm.DB) *gorm.DB { return db.Order("created_at asc") }).
 		Order("updated_at desc")
 
 	if status := strings.TrimSpace(r.URL.Query().Get("status")); status != "" {
@@ -54,18 +54,22 @@ func (h *AssessmentHandler) createReviewEvidenceCase(w http.ResponseWriter, r *h
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if reviewCase.StudentName == "" {
+	if strings.TrimSpace(reviewCase.StudentName) == "" {
 		writeError(w, http.StatusBadRequest, "student_name is required")
 		return
 	}
-	if reviewCase.ReviewSummary == "" {
+	if strings.TrimSpace(reviewCase.ReviewSummary) == "" {
 		reviewCase.ReviewSummary = "Activity records are available for human review."
 	}
 	if err := h.db.Create(&reviewCase).Error; err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	h.db.Preload("EvidenceFiles").Preload("Timeline").Preload("Actions").First(&reviewCase, "id = ?", reviewCase.ID)
+	h.db.
+		Preload("EvidenceFiles").
+		Preload("Timeline", func(db *gorm.DB) *gorm.DB { return db.Order("event_time asc") }).
+		Preload("Actions", func(db *gorm.DB) *gorm.DB { return db.Order("created_at asc") }).
+		First(&reviewCase, "id = ?", reviewCase.ID)
 	writeJSON(w, http.StatusCreated, reviewCase)
 }
 
@@ -107,15 +111,11 @@ func (h *AssessmentHandler) reviewEvidenceCaseAction(w http.ResponseWriter, r *h
 		ToStatus:   toStatus,
 	}
 
-	if err := h.db.Transaction(func(tx any) error {
-		db := tx.(interface {
-			Save(value any) *gorm.DB
-			Create(value any) *gorm.DB
-		})
-		if err := db.Save(&reviewCase).Error; err != nil {
+	if err := h.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(&reviewCase).Error; err != nil {
 			return err
 		}
-		if err := db.Create(&actionRow).Error; err != nil {
+		if err := tx.Create(&actionRow).Error; err != nil {
 			return err
 		}
 		return nil
@@ -124,7 +124,11 @@ func (h *AssessmentHandler) reviewEvidenceCaseAction(w http.ResponseWriter, r *h
 		return
 	}
 
-	h.db.Preload("EvidenceFiles").Preload("Timeline").Preload("Actions").First(&reviewCase, "id = ?", reviewCase.ID)
+	h.db.
+		Preload("EvidenceFiles").
+		Preload("Timeline", func(db *gorm.DB) *gorm.DB { return db.Order("event_time asc") }).
+		Preload("Actions", func(db *gorm.DB) *gorm.DB { return db.Order("created_at asc") }).
+		First(&reviewCase, "id = ?", reviewCase.ID)
 	writeJSON(w, http.StatusOK, reviewCase)
 }
 
@@ -143,11 +147,4 @@ func reviewEvidenceNextStatus(action string) (string, bool) {
 	default:
 		return "", false
 	}
-}
-
-func metadataJSON(value map[string]any) datatypes.JSON {
-	if value == nil {
-		return datatypes.JSON([]byte("{}"))
-	}
-	return datatypes.JSON([]byte("{}"))
 }
