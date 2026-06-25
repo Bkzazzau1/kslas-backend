@@ -736,9 +736,9 @@ func validateQuestionPayload(payload map[string]any) error {
 	for _, question := range questions {
 		qType := normalizeQuestionType(fmt.Sprint(question["type"]))
 		switch qType {
-		case "objective", "fill_blank", "drag_drop", "essay", "image_question", "file_upload":
+		case "objective", "single_choice", "multiple_choice", "fill_blank", "drag_drop", "essay", "image_question", "file_upload":
 		default:
-			return ValidationError{Message: "question type must be objective, fill_blank, drag_drop, essay, image_question, or file_upload"}
+			return ValidationError{Message: "question type must be objective, single_choice, multiple_choice, fill_blank, drag_drop, essay, image_question, or file_upload"}
 		}
 
 		if strings.TrimSpace(fmt.Sprint(question["id"])) == "" {
@@ -797,8 +797,12 @@ func normalizeQuestionType(raw string) string {
 	value = strings.ReplaceAll(value, " ", "_")
 
 	switch value {
-	case "obj", "objective_question", "multiple_choice", "mcq":
+	case "obj", "objective_question", "mcq":
 		return "objective"
+	case "single_answer", "single_choice":
+		return "single_choice"
+	case "multiple_answer", "multiple_answers", "multiple_choice", "multi_choice":
+		return "multiple_choice"
 	case "fill_in_blank", "fill_the_blank", "fillinblank", "fill_blank":
 		return "fill_blank"
 	case "dragdrop", "drag_and_drop", "drag_drop", "matching":
