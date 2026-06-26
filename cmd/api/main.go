@@ -35,6 +35,7 @@ func main() {
 		&models.CASubmission{},
 		&models.MarkedExamScriptSubmission{},
 		&models.Notification{},
+		&models.ExamActivityRecord{},
 		&models.ReviewEvidenceCase{},
 		&models.ReviewEvidenceFile{},
 		&models.ReviewEvidenceTimelineItem{},
